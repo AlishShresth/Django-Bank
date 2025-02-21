@@ -156,16 +156,17 @@ LOGURU_LOGGING = {
         {
             "sink": BASE_DIR / "logs/error.log",
             "level": "ERROR",
-            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}: {line} - "
+            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - "
             "{message}",
             "rotation": "10MB",
             "retention": "30 days",
             "compression": "zip",
             "backtrace": True,
             "diagnose": True,
-        }
+        },
     ],
 }
+logger.configure(**LOGURU_LOGGING)
 
 LOGGING = {
     "version": 1,
