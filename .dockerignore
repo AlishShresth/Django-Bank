@@ -8,4 +8,4 @@ venv/
 .venv/
 *.log
 staticfiles/
-.evns/*
+.envs/*

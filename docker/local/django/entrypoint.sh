@@ -20,16 +20,18 @@ while True:
       password="${POSTGRES_PASSWORD}",
       host="${POSTGRES_HOST}",
       port="${POSTGRES_PORT}",
-      )
+    )
     break
   except psycopg2.OperationalError as error:
     sys.stderr.write("Waiting for PostgreSQL to become available...\n")
     if time.time() - start > suggest_unrecoverable_after:
-      sys.stderr.write("This is taking longer than expected. The following exception may be indicative of an unrecoverable error: '{}'\n".format(error))
-      time.sleep(3)
-
+      sys.stderr.write(
+        "This is taking longer than expected. The following exception may be "
+        "indicative of an unrecoverable error: '{}'\n".format(error)
+      )
+    time.sleep(3)
 END
 
-echo >&2 'PostgreSQL is available!'
+echo >&2 'PostgreSQL is available'
 
 exec "$@"
