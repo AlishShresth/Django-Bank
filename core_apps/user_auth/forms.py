@@ -52,7 +52,7 @@ class UserCreationForm(DjangoUserCreationForm):
                 )
 
         return cleaned_data
-    
+
     def save(self, commit=True):
         user = super().save(commit=False)
         if commit:
@@ -81,10 +81,10 @@ class UserChangeForm(DjangoUserChangeForm):
         if User.objects.exclude(pk=self.instance.pk).filter(email=email).exists():
             raise ValidationError(_("A user with that email already exists."))
         return email
-    
+
     def clean_id_no(self):
         id_no = self.cleaned_data.get("id_no")
-        if User.objects.exclude(pk=self.instance.pk).filter(id_no-id_no).exists():
+        if User.objects.exclude(pk=self.instance.pk).filter(id_no - id_no).exists():
             raise ValidationError(_("A user with that ID number already exists."))
         return id_no
 
