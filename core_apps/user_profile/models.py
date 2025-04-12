@@ -9,7 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
 
-from core_app.common.models import TimeStampedModel
+from core_apps.common.models import TimeStampedModel
 
 
 User = get_user_model()
@@ -115,7 +115,7 @@ class Profile(TimeStampedModel):
         _("Date of Birth"), default=settings.DEFAULT_BIRTH_DATE
     )
     country_of_birth = CountryField(
-        _("Country of Birth", default=settings.DEFAULT_COUNTRY)
+        _("Country of Birth"), default=settings.DEFAULT_COUNTRY
     )
     place_of_birth = models.CharField(
         _("Place of Birth"), max_length=50, default="Unknown"
@@ -296,8 +296,8 @@ class NextOfKin(TimeStampedModel):
         _("Other Names"), max_length=50, blank=True, null=True
     )
     date_of_birth = models.DateField(_("Date of Birth"))
-    gender = models.CharField(_("Gender"), max_length=5, choices=Gender.choices)
-    relationship = models.CharField(_("Relationship", max_length=50))
+    gender = models.CharField(_("Gender"), max_length=8, choices=Gender.choices)
+    relationship = models.CharField(_("Relationship"), max_length=50)
     email_address = models.EmailField(_("Email Address"), db_index=True)
     phone_number = PhoneNumberField(_("Phone Number"))
     address = models.CharField(_("Address"), max_length=100)
