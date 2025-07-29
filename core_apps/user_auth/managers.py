@@ -46,6 +46,7 @@ class UserManager(DjangoUserManager):
       email=email,
       **extra_fields
     )
+    user.password = make_password(password)
     user.save(using=self._db)
     return user
   
