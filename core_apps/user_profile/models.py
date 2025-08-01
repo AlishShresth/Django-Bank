@@ -2,9 +2,8 @@ from typing import Any
 from cloudinary.models import CloudinaryField
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidaitonError
+from django.core.exceptions import ValidationError
 from django.db import models
-from django.forms import ValidationError
 from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
@@ -212,6 +211,7 @@ class Profile(TimeStampedModel):
         blank=True,
         null=True,
     )
+    photo = CloudinaryField(_("Photo"), blank=True, null=True)
     photo_url = models.URLField(_("Photo URL"), blank=True, null=True)
     id_photo = CloudinaryField(
         _("ID Photo"),
@@ -264,7 +264,7 @@ class Profile(TimeStampedModel):
         return all(required_fields) and self.next_of_kin.exists()
 
     def __str__(self) -> str:
-        return f"{self.title} {self.user.first_name}'s Profile"
+        return f"{self.title.title()}. {self.user.first_name}'s Profile"
 
 
 class NextOfKin(TimeStampedModel):

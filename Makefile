@@ -26,7 +26,7 @@ superuser:
 	docker compose -f local.yml run --rm api python manage.py createsuperuser
 
 flush:
-	docker compose -f lcoal.yml run --rm api python manage.py flush
+	docker compose -f local.yml run --rm api python manage.py flush
 
 network-inspect:
 	docker network inspect banker_local_nw

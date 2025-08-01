@@ -8,7 +8,7 @@ from .models import ContentView
 
 
 @admin.register(ContentView)
-class ContentViewAdmin(ContentView):
+class ContentViewAdmin(admin.ModelAdmin):
     list_display = [
         "content_object",
         "content_type",
@@ -17,7 +17,7 @@ class ContentViewAdmin(ContentView):
         "last_viewed",
         "created_at",
     ]
-    list_filter = ["content_type", "Last_viewed", "created_at"]
+    list_filter = ["content_type", "last_viewed", "created_at"]
     date_hierarchy = "last_viewed"
     readonly_fields = [
         "content_type",
