@@ -59,7 +59,7 @@ class User(AbstractUser):
     role = models.CharField(
         _("Role"), choices=RoleChoices.choices, default=RoleChoices.CUSTOMER
     )
-    failed_logins = models.PositiveSmallIntegerField(default=0)
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
     last_failed_login = models.DateTimeField(null=True, blank=True)
     otp = models.CharField(_("OTP"), max_length=6, blank=True)
     otp_expiry_time = models.DateTimeField(_("OTP Expiry Time"), null=True, blank=True)
@@ -87,7 +87,7 @@ class User(AbstractUser):
             return True
         return False
 
-    def handle_failed_attempts(self) -> None:
+    def handle_failed_login_attempts(self) -> None:
         self.failed_login_attempts += 1
         self.last_failed_login = timezone.now()
         if self.failed_login_attempts >= settings.LOGIN_ATTEMPTS:

@@ -253,7 +253,7 @@ LOGURU_LOGGING = {
             "sink": BASE_DIR / "logs/debug.log",
             "level": "DEBUG",
             "filter": lambda record: record["level"].no <= logger.level("WARNING").no,
-            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | -{message}",
+            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | - {message}",
             "rotation": "1 day",
             "retention": "30 days",
             "compression": "zip",
@@ -261,7 +261,7 @@ LOGURU_LOGGING = {
         {
             "sink": BASE_DIR / "logs/error.log",
             "level": "ERROR",
-            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | -{message}",
+            "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | - {message}",
             "rotation": "10MB",
             "retention": "30 days",
             "compression": "zip",

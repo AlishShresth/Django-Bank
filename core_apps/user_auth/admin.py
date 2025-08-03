@@ -53,7 +53,7 @@ class CustomUserAdmin(UserAdmin):
             {
                 "fields": (
                     "account_status",
-                    "failed_logins",
+                    "failed_login_attempts",
                     "last_failed_login",
                 )
             },
