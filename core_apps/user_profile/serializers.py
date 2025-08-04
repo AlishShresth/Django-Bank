@@ -116,7 +116,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-    
+
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         id_issue_date = attrs.get["id_issue_date"]
         id_expiry_date = attrs.get("id_expiry_date")
@@ -126,7 +126,7 @@ class ProfileSerializer(serializers.ModelSerializer):
                 {"id_expiry_date": "ID expiry date must be after the issue date"}
             )
         return attrs
-    
+
     def to_representation(self, instance: Profile) -> dict:
         representation = super().to_representation(instance)
 
@@ -135,3 +135,71 @@ class ProfileSerializer(serializers.ModelSerializer):
         ).data
 
         return representation
+
+    def update(self, instance: Profile, validated_data: dict) -> Profile:
+        user_data = validated_data.pop("user", {})
+
+        if user_data:
+            for attr, value in user_data.items:
+                if attr not in ["email", "username"]:
+                    setattr(instance.user, attr, value)
+
+            instance.user.save()
+
+        photos_to_upload = {}
+
+        for field in ["photo", "id_photo", "signature_photo"]:
+            if field in validated_data:
+                photo = validated_data.pop(field)
+                if photo.size > settings.MAX_UPLOAD_SIZE:
+                    temp_file = default_storage.save(
+                        f"temp_{instance.id}_{field}.jpg", ContentFile(photo.read())
+                    )
+                    temp_file_path = default_storage.path(temp_file)
+                    photos_to_upload[field] = {"type": "file", "path": temp_file_path}
+                else:
+                    image_content = photo.read()
+                    encoded_image = base64.b64encode(image_content).decode("utf-8")
+                    photos_to_upload[field] = {"type": "base64", "data": encoded_image}
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        if photos_to_upload:
+            upload_photos_to_cloudinary.delay(str(instance.id), photos_to_upload)
+
+        return instance
+
+    def get_view_count(self, obj: Profile) -> int:
+        content_type = ContentType.objects.get_for_model(obj)
+        return ContentView.objects.filter(
+            content_type=content_type, object_id=obj.id
+        ).count()
+
+
+class ProfileListSerializer(serializers.ModelSerializer):
+    full_name = serializers.ReadOnlyField(source="user.fullname")
+    username = serializers.ReadOnlyField(source="user.username")
+    email = serializers.EmailField(source="user.email", read_only=True)
+    photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profile
+        fields = [
+            "full_name",
+            "username",
+            "gender",
+            "nationality",
+            "country_of_birth",
+            "email",
+            "phone_number",
+            "photo",
+        ]
+    
+    def get_photo(self, obj:Profile) ->str | None:
+        try:
+            return obj.photo.url
+        except AttributeError:
+            return None
