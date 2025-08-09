@@ -23,7 +23,7 @@ class UUIDField(serializers.Field):
         return str(value)
 
 
-class NextOfKinSerializer(serializers.modelSerializer):
+class NextOfKinSerializer(serializers.ModelSerializer):
     id = UUIDField(read_only=True)
     country = CountryField(name_only=True)
     phone_number = PhoneNumberField()
@@ -118,7 +118,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         ]
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-        id_issue_date = attrs.get["id_issue_date"]
+        id_issue_date = attrs.get("id_issue_date")
         id_expiry_date = attrs.get("id_expiry_date")
 
         if id_issue_date and id_expiry_date and id_expiry_date <= id_issue_date:

@@ -40,7 +40,7 @@ class ProfileListAPIView(generics.ListAPIView):
         )
 
 
-class ProfileDetailAPIView(generics.RetrieveAPIView):
+class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     renderer_classes = [GenericJSONRenderer]
@@ -85,8 +85,7 @@ class ProfileDetailAPIView(generics.RetrieveAPIView):
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
         try:
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
