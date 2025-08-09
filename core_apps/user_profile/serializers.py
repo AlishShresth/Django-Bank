@@ -180,7 +180,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class ProfileListSerializer(serializers.ModelSerializer):
-    full_name = serializers.ReadOnlyField(source="user.fullname")
+    full_name = serializers.ReadOnlyField(source="user.full_name")
     username = serializers.ReadOnlyField(source="user.username")
     email = serializers.EmailField(source="user.email", read_only=True)
     photo = serializers.SerializerMethodField()

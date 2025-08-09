@@ -141,7 +141,7 @@ class NextOfKinAPIView(generics.ListCreateAPIView):
 
 
 class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    serializer = NextOfKinSerializer
+    serializer_class = NextOfKinSerializer
     renderer_classes = [GenericJSONRenderer]
     object_label = "next_of_kin"
 
