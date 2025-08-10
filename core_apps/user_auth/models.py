@@ -7,9 +7,10 @@ from django.utils.translation import gettext_lazy as _
 
 from .emails import send_account_locked_email
 from .managers import UserManager
+from core_apps.common.models import SoftDeleteModel
 
 
-class User(AbstractUser):
+class User(AbstractUser, SoftDeleteModel):
     class SecurityQuestions(models.TextChoices):
         MAIDEN_NAME = (
             "maiden_name",
@@ -131,9 +132,9 @@ class User(AbstractUser):
         verbose_name = _("User")
         verbose_name_plural = _("Users")
         ordering = ["-date_joined"]
-    
+
     def has_role(self, role_name: str) -> bool:
         return hasattr(self, "role") and self.role == role_name
-    
+
     def __str__(self) -> str:
         return f"{self.full_name} - {self.get_role_display()}"

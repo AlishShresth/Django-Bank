@@ -3,13 +3,13 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from core_apps.common.models import TimeStampedModel
+from core_apps.common.models import TimeStampedModel, SoftDeleteModel
 
 
 User = get_user_model()
 
 
-class BankAccount(models.Model):
+class BankAccount(TimeStampedModel, SoftDeleteModel):
     class AccountType(models.TextChoices):
         CURRENT = ("current", _("Current"))
         SAVINGS = ("savings", _("Savings"))
@@ -26,11 +26,21 @@ class BankAccount(models.Model):
         NEPALESE_RUPEES = ("nepalese_rupees", _("Nepalese Rupees"))
 
     user = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="bank_accounts"
+        "User",
+        on_delete=models.DO_NOTHING,
+        related_name="bank_accounts",
     )
-    account_number = models.CharField(_("Account Number"), max_length=20, unique=True)
+    account_number = models.CharField(
+        _("Account Number"),
+        max_length=20,
+        unique=True,
+        db_index=True,
+    )
     account_balance = models.DecimalField(
-        _("Account Balance"), decimal_paces=2, max_digits=10, default=0.00
+        _("Account Balance"),
+        decimal_paces=2,
+        max_digits=10,
+        default=0.00,
     )
     currency = models.CharField(
         _("Currency"),
@@ -43,6 +53,7 @@ class BankAccount(models.Model):
         max_length=10,
         choices=AccountStatus.choices,
         default=AccountStatus.INACTIVE,
+        db_index=True,
     )
     account_type = models.CharField(
         _("Account Type"),
@@ -50,21 +61,40 @@ class BankAccount(models.Model):
         choices=AccountType.choices,
         default=AccountType.SAVINGS,
     )
-    is_primary = models.BooleanField(_("Primary Account"), default=False)
-    kyc_submitted = models.BooleanField(_("KYC Submitted"), default=False)
-    kyc_verified = models.BooleanField(_("KYC Verified"), default=False)
+    is_primary = models.BooleanField(
+        _("Primary Account"),
+        default=False,
+    )
+    kyc_submitted = models.BooleanField(
+        _("KYC Submitted"),
+        default=False,
+        db_index=True,
+    )
+    kyc_verified = models.BooleanField(
+        _("KYC Verified"),
+        default=False,
+        db_index=True,
+    )
     verified_by = models.ForeignKey(
         User,
-        on_delete=models.SET_NULL,
+        on_delete=models.DO_NOTHING,
         blank=True,
         null=True,
         related_name="verified_accounts",
     )
     verification_date = models.DateTimeField(
-        _("Verification Date"), null=True, blank=True
+        _("Verification Date"),
+        null=True,
+        blank=True,
     )
-    verification_note = models.TextField(_("Verification Notes"), blank=True)
-    fully_activated = models.BooleanField(_("Fully Activated"), default=False)
+    verification_note = models.TextField(
+        _("Verification Notes"),
+        blank=True,
+    )
+    fully_activated = models.BooleanField(
+        _("Fully Activated"),
+        default=False,
+    )
 
     def __str__(self) -> str:
         return f"{self.user.full_name}'s {self.get_currency_display()} - {self.get_account_type_display()} Account - {self.account_number} "
@@ -73,3 +103,48 @@ class BankAccount(models.Model):
         verbose_name = _("Bank Account")
         verbose_name_plural = _("Bank Accounts")
         unique_together = ["user", "currency", "account_type"]
+
+    def clean(self) -> None:
+        if self.account_balance < 0:
+            raise ValidationError(_("Account balance cannot be negative"))
+
+    def save(self, *args, **kwargs) -> None:
+        if self.is_primary:
+            BankAccount.objects.filter(user=self.user).update(is_primary=False)
+        super().save(*args, **kwargs)
+
+
+class Transaction(TimeStampedModel):
+    class TransactionStatus(models.TextChoices):
+        PENDING = ("pending", _("Pending"))
+        COMPLETED = ("completed", _("Completed"))
+        FAILED = ("failed", _("Failed"))
+
+    class TransactionType(models.TextChoices):
+        DEPOSIT = ("deposit", _("Deposit"))
+        WITHDRAWAL = ("withdrawal", _("Withdrawal"))
+        TRANSFER = ("transfer", _("Transfer"))
+
+    user = models.ForeignKey(
+        User, on_delete=models.DO_NOTHING, null=True, related_name="transactions"
+    )
+    amount = models.DecimalField(
+        _("Amount"), decimal_places=2, max_digits=12, default=0.00
+    )
+    description = models.CharField(
+        _("Description"), max_length=500, null=True, blank=True
+    )
+    receiver = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="received_transactions",
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        related_name="sent_transactions",
+    )
+    receiver_account = models.ForeignKey(BankAccount, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="received_account")

@@ -6,6 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import IntegrityError, models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from django.conf import settings
 
 
 User = get_user_model()
@@ -18,6 +19,91 @@ class TimeStampedModel(models.Model):
 
     class Meta:
         abstract = True
+
+
+class SoftDeleteQuerySet(models.QuerySet):
+    """Custom QuerySet for soft delete functionality"""
+
+    def delete(self):
+        """Soft delete all objects in the queryset"""
+        return self.update(is_deleted=True, deleted_at=timezone.now())
+
+    def hard_delete(self):
+        """Permanently delete all objects in the queryset"""
+        return super().delete()
+
+    def alive(self):
+        """Return only non-deleted objects"""
+        return self.filter(is_deleted=False)
+
+    def deleted(self):
+        """Return only deleted objects"""
+        return self.filter(is_deleted=True)
+
+
+class SoftDeleteManager(models.Manager):
+    """Manager that excludes soft-deleted objects by default"""
+
+    def get_queryset(self):
+        return SoftDeleteQuerySet(self.model, using=self._db).alive()
+
+    def all_with_deleted(self):
+        """Return all objects including soft-deleted ones"""
+        return SoftDeleteQuerySet(self.model, using=self._db)
+
+    def deleted_only(self):
+        """Return only soft-deleted objects"""
+        return SoftDeleteQuerySet(self.model, using=self._db).deleted()
+
+
+class SoftDeleteModel(models.Model):
+    """Abstract base model that provides soft delete functionality"""
+
+    is_deleted = models.BooleanField(
+        _("Is Deleted"),
+        default=False,
+        db_index=True,
+    )
+    deleted_at = models.DateTimeField(
+        _("Deleted At"),
+        null=True,
+        blank=True,
+    )
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        blank=True,
+        related_name="%(class)s_deletes",
+        verbose_name=_("Deleted By"),
+    )
+
+    objects = SoftDeleteManager()
+
+    class Meta:
+        abstract = True
+
+    def soft_delete(self, deleted_by=None):
+        """Soft delete this object"""
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.deleted_by = deleted_by
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def restore(self):
+        """Restore this soft-deleted object"""
+        self.is_deleted = False
+        self.deleted_at = None
+        self.deleted_by = None
+        self.save(update_fields=["is_deleted", "deleted_at", "deleted_by"])
+
+    def delete(self, using=None, keep_parents=False):
+        """Override delete to perform soft delete by default"""
+        self.soft_delete()
+
+    def hard_delete(self, using=None, keep_parents=False):
+        """Permanently delete this object from the database"""
+        super.delete(using=using, keep_parents=keep_parents)
 
 
 class ContentView(TimeStampedModel):
