@@ -21,7 +21,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         BLOCKED = ("blocked", _("Blocked"))
 
     class AccountCurrency(models.TextChoices):
-        DOLLAR = ("dollar", _("Dollar"))
+        DOLLAR = ("us_dollar", _("US Dollar"))
         POUND_STERLING = ("pound_sterling", _("Pound Sterling"))
         NEPALESE_RUPEES = ("nepalese_rupees", _("Nepalese Rupees"))
 
@@ -147,4 +147,31 @@ class Transaction(TimeStampedModel):
         blank=True,
         related_name="sent_transactions",
     )
-    receiver_account = models.ForeignKey(BankAccount, on_delete=models.DO_NOTHING, null=True, blank=True, related_name="received_account")
+    receiver_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="received_transactions",
+    )
+    sender_account = models.ForeignKey(
+        BankAccount,
+        on_delete=models.DO_NOTHING,
+        null=True,
+        related_name="sent_transactions",
+    )
+    status = models.CharField(
+        choices=TransactionStatus.choices,
+        max_length=20,
+        default=TransactionStatus.PENDING,
+    )
+    transaction_type = models.CharField(
+        choices=TransactionType.choices,
+        max_length=20,
+    )
+
+    def __str__(self) -> str:
+        return f"{self.transaction_type} - {self.amount} - {self.status}"
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["created_at"])]
