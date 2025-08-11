@@ -8,14 +8,14 @@ from django.utils.translation import gettext_lazy as _
 from django_countries.fields import CountryField
 from phonenumber_field.modelfields import PhoneNumberField
 
-from core_apps.common.models import TimeStampedModel
+from core_apps.common.models import TimeStampedModel, SoftDeleteModel
 from core_apps.accounts.models import BankAccount
 
 
 User = get_user_model()
 
 
-class Profile(TimeStampedModel):
+class Profile(TimeStampedModel, SoftDeleteModel):
     class Salutation(models.TextChoices):
         MR = (
             "mr",
@@ -110,7 +110,7 @@ class Profile(TimeStampedModel):
             _("Student"),
         )
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    user = models.OneToOneField(User, on_delete=models.DO_NOTHING, related_name="profile")
     title = models.CharField(
         _("Salutation"), max_length=5, choices=Salutation.choices, default=Salutation.MR
     )
@@ -313,7 +313,7 @@ class NextOfKin(TimeStampedModel):
 
     profile = models.ForeignKey(
         Profile,
-        on_delete=models.CASCADE,
+        on_delete=models.DO_NOTHING,
         related_name="next_of_kin",
     )
     title = models.CharField(_("Salutation"), max_length=5, choices=Salutation.choices)

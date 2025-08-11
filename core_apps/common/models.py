@@ -9,9 +9,6 @@ from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
 
-User = get_user_model()
-
-
 class TimeStampedModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -106,15 +103,15 @@ class SoftDeleteModel(models.Model):
         super.delete(using=using, keep_parents=keep_parents)
 
 
-class ContentView(TimeStampedModel):
+class ContentView(TimeStampedModel, SoftDeleteModel):
     content_type = models.ForeignKey(
-        ContentType, on_delete=models.CASCADE, verbose_name=_("Content Type")
+        ContentType, on_delete=models.DO_NOTHING, verbose_name=_("Content Type")
     )
     object_id = models.UUIDField(verbose_name=_("Object ID"))
     content_object = GenericForeignKey("content_type", "object_id")
     user = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.DO_NOTHING,
         null=True,
         blank=True,
         related_name="content_views",
@@ -137,7 +134,7 @@ class ContentView(TimeStampedModel):
 
     @classmethod
     def record_view(
-        cls, content_object: Any, user: Optional[User], viewer_ip: Optional[str]
+        cls, content_object: Any, user: Optional[get_user_model], viewer_ip: Optional[str]
     ) -> None:
         content_type = ContentType.objects.get_for_model(content_object)
 

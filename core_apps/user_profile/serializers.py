@@ -147,7 +147,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         user_data = validated_data.pop("user", {})
 
         if user_data:
-            for attr, value in user_data.items:
+            for attr, value in user_data.items():
                 if attr not in ["email", "username"]:
                     setattr(instance.user, attr, value)
 

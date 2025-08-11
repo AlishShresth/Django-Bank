@@ -11,6 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.request import Request
+from loguru import logger
 
 from core_apps.common.models import ContentView
 from core_apps.common.permissions import IsBranchManager
@@ -19,7 +20,6 @@ from core_apps.accounts.utils import create_bank_account
 from core_apps.accounts.models import BankAccount
 from .models import NextOfKin, Profile
 from .serializers import NextOfKinSerializer, ProfileListSerializer, ProfileSerializer
-
 
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -126,8 +126,10 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
                         }, status=status.HTTP_200_OK
                     )
         except serializers.ValidationError as e:
+            logger.exception(e)
             return Response({"errors": e.detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.exception(e)
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request: Request, *args: Any, **kwargs: Any) -> Response:

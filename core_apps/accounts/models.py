@@ -26,7 +26,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         NEPALESE_RUPEES = ("nepalese_rupees", _("Nepalese Rupees"))
 
     user = models.ForeignKey(
-        "User",
+        User,
         on_delete=models.DO_NOTHING,
         related_name="bank_accounts",
     )
@@ -38,7 +38,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
     )
     account_balance = models.DecimalField(
         _("Account Balance"),
-        decimal_paces=2,
+        decimal_places=2,
         max_digits=10,
         default=0.00,
     )
