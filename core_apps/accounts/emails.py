@@ -30,10 +30,7 @@ def send_full_activation_email(account: BankAccount) -> None:
     subject = _("Your Bank Account is now fully activated")
     from_email = settings.DEFAULT_FROM_EMAIL
     recipient_list = [account.user.email]
-    context = {
-        "account": account,
-        "site_name": settings.SITE_NAME,
-    }
+    context = {"account": account, "site_name": settings.SITE_NAME}
     html_email = render_to_string("emails/bank_account_activated.html", context)
     plain_email = strip_tags(html_email)
     email = EmailMultiAlternatives(subject, plain_email, from_email, recipient_list)
@@ -43,5 +40,5 @@ def send_full_activation_email(account: BankAccount) -> None:
         logger.info(f"Account Fully Activated email sent to: {account.user.email}")
     except Exception as e:
         logger.error(
-            f"Failed to send account fully activated email to: {account.user.email}: Error: {str(e)}"
+            f"Failed to send Fully Activated email to  {account.user.email}: Error: {str(e)}"
         )

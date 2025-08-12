@@ -14,8 +14,8 @@ class AccountVerificationView(generics.UpdateAPIView):
     queryset = BankAccount.objects.all()
     serializer_class = AccountVerificationSerializer
     renderer_classes = [GenericJSONRenderer]
-    permission_classes = [IsAccountExecutive]
     object_label = "verification"
+    permission_classes = [IsAccountExecutive]
 
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         instance = self.get_object()
@@ -27,7 +27,7 @@ class AccountVerificationView(generics.UpdateAPIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        partial = kwargs.pop("partial")
+        partial = kwargs.pop("partial", False)
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
 
         if serializer.is_valid(raise_exception=True):
@@ -41,18 +41,15 @@ class AccountVerificationView(generics.UpdateAPIView):
 
             if kyc_verified and not kyc_submitted:
                 return Response(
-                    {
-                        "error": "KYC must be submitted before it can be verified",
-                    },
+                    {"error": "KYC must be submitted before it can be verified."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
             instance.kyc_submitted = kyc_submitted
             instance.save()
 
             if kyc_submitted and kyc_verified:
                 instance.kyc_verified = kyc_verified
-                instance.kyc_verification_date = serializer.validated_data.get(
+                instance.verification_date = serializer.validated_data.get(
                     "verification_date", timezone.now()
                 )
                 instance.verification_note = serializer.validated_data.get(
