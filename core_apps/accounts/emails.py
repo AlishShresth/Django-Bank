@@ -22,7 +22,7 @@ def send_account_creation_email(user, bank_account):
         logger.info(f"Account Created email sent to: {user.email}")
     except Exception as e:
         logger.error(
-            f"Failed to send account created email to: {user.email}: Error: {str(e)}"
+            f"Failed to send account created email to {email}: Error: {str(e)}"
         )
 
 
