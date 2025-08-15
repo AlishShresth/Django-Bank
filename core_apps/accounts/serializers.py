@@ -182,3 +182,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         return data
 
 
+class SecurityQuestionSerializer(serializers.Serializer):
+    security_answer = serializers.CharField(max_length=30)
+
+    def validate(self, data: dict) -> dict:
+        user = self.context["request"].user
+        if data["security_answer"] != user.security_answer:
+            raise serializers.ValidationError("Incorrect security answer.")
+        return data
