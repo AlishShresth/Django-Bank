@@ -67,5 +67,5 @@ def send_deposit_email(
         logger.info(f"Deposit Confirmation email sent to: {user_email}")
     except Exception as e:
         logger.error(
-            f"Failed to send Deposit Confirmation email to {user_email}: Error: {    str(e)}"
+            f"Failed to send Deposit Confirmation email to {user_email}: Error: {str(e)}"
         )
