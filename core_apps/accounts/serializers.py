@@ -1,7 +1,7 @@
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from decimal import Decimal
-from .models import BankAccount
+from .models import BankAccount, Transaction
 
 
 class AccountVerificationSerializer(serializers.ModelSerializer):
@@ -88,3 +88,97 @@ class CustomerInfoSerializer(serializers.ModelSerializer):
         if hasattr(obj.user, "profile") and obj.user.profile.photo_url:
             return obj.user.profile.photo_url
         return None
+
+
+class UUIDField(serializers.Field):
+    def to_representation(self, value) -> str:
+        return str(value)
+
+
+class TransactionSerializer(serializers.ModelSerializer):
+    id = UUIDField(read_only=True)
+    sender_account = serializers.CharField(max_length=20, required=False)
+    receiver_account = serializers.CharField(max_length=20, required=False)
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.1")
+    )
+
+    class Meta:
+        model = Transaction
+        fields = [
+            "id",
+            "amount",
+            "description",
+            "status",
+            "transaction_type",
+            "created_at",
+            "sender",
+            "receiver",
+            "sender_account",
+            "receiver_account",
+        ]
+        read_only_fields = ["id", "status", "created_at"]
+
+    def to_representation(self, instance: Transaction) -> str:
+        representation = super().to_representation(instance)
+        representation["amount"] = str(representation["amount"])
+        representation["sender"] = (
+            instance.sender.full_name if instance.sender else None
+        )
+        representation["receiver"] = str(
+            instance.receiver.full_name if instance.receiver else None
+        )
+        representation["sender_account"] = (
+            instance.sender_account.account_number if instance.sender_account else None
+        )
+        representation["receiver_account"] = (
+            instance.receiver_account.account_number
+            if instance.receiver_account
+            else None
+        )
+        return representation
+
+    def validate(self, data):
+        transaction_type = data.get("transaction_type")
+        sender_account_number = data.get("sender_account")
+        receiver_account_number = data.get("receiver_account")
+        amount = data.get("amount")
+
+        try:
+            if transaction_type == Transaction.TransactionType.WITHDRAWAL:
+                account = BankAccount.objects.get(account_number=sender_account_number)
+                data["sender_account"] = account
+                data["receiver_account"] = None
+                if account.account_balance < amount:
+                    raise serializers.ValidationError(
+                        _("Insufficient funds for withdrawal")
+                    )
+                elif transaction_type == Transaction.TransactionType.DEPOSIT:
+                    account = BankAccount.objects.get(
+                        account_number=receiver_account_number
+                    )
+                    data["sender_account"] = None
+                    data["receiver_account"] = account
+                else:
+                    sender_account = BankAccount.objects.get(
+                        account_number=sender_account_number
+                    )
+                    receiver_account = BankAccount.objects.get(
+                        account_number=receiver_account_number
+                    )
+                    data["sender_account"] = sender_account
+                    data["receiver_account"] = receiver_account
+
+                    if sender_account == receiver_account:
+                        raise serializers.ValidationError(
+                            _("Sender and receiver accounts must be different")
+                        )
+                    if sender_account.currency != receiver_account.currency:
+                        raise serializers.ValidationError(
+                            _("Insufficient funds for transfer")
+                        )
+        except BankAccount.DoesNotExist:
+            raise serializers.ValidationError(_("One or both accounts not found"))
+        return data
+
+
