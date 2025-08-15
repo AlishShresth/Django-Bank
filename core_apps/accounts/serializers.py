@@ -200,3 +200,13 @@ class OTPVerificationSerializer(serializers.Serializer):
         if not user.verify_otp(data["otp"]):
             raise serializers.ValidationError("Invalid or expired OTP")
         return data
+
+
+class UsernameVerificationSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=12)
+
+    def validate_username(self, value: dict) -> dict:
+        user = self.context["request"].user
+        if user.username != value:
+            raise serializers.ValidationError("Invalid username.")
+        return value
