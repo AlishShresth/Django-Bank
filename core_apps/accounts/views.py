@@ -1,16 +1,25 @@
 from typing import Any
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import generics, status, serializers
 from rest_framework.request import Request
 from rest_framework.response import Response
 from core_apps.common.permissions import IsAccountExecutive, IsTeller
 from core_apps.common.renderers import GenericJSONRenderer
-from .emails import send_full_activation_email, send_deposit_email
-from .models import BankAccount
+from .emails import (
+    send_full_activation_email,
+    send_deposit_email,
+    send_withdrawal_email,
+    send_transfer_email,
+    send_transfer_otp_email,
+)
+from .models import BankAccount, Transaction
+from decimal import Decimal
 from .serializers import (
     AccountVerificationSerializer,
     DepositSerializer,
     CustomerInfoSerializer,
+    TransactionSerializer,
+    UsernameVerificationSerializer,
 )
 from django.db import transaction
 from loguru import logger
@@ -136,3 +145,73 @@ class DepositView(generics.CreateAPIView):
                 {"error": "An error occured during the deposit"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class InitiateWithdrawalView(generics.CreateAPIView):
+    serializer_class = TransactionSerializer
+    renderer_classes = [GenericJSONRenderer]
+    object_label = "initiate_withdrawal"
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        account_number = request.data.get("account_number")
+        amount = request.data.get("amount")
+
+        if not account_number:
+            return Response(
+                {"error": "Account number is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            account = BankAccount.objects.get(
+                account_number=account_number, user=request.user
+            )
+
+            if not (account.fully_activated and account.kyc_verified):
+                return Response(
+                    {
+                        "error": "Your account is not fully verified. Please complete the verification process"
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        except BankAccount.DoesNotExist:
+            return Response(
+                {"error": "You are not authorized to withdraw from this account"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = self.get_serializer(
+            data={
+                "amount": amount,
+                "description": f"Withdrawal from account {account_number}",
+                "transaction_type": Transaction.TransactionType.WITHDRAWAL,
+                "sender_account": account_number,
+                "receiver_account": account_number,
+            }
+        )
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        amount = serializer.validated_data['amount']
+
+        if account.account_balance < amount:
+            return Response(
+                {"error": "Insufficient funds for withdrawal"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        request.session['withdrawal_data'] = {
+            'account_number': account_number,
+            'amount': str(amount),
+        }
+        logger.info('Withdrawal data stored in session')
+
+        return Response(
+            {"message": "Withdrawal Initiated. Please verify your username to complete the withdrawal", 'next_step': 'Verify your username to complete the withdrawal'},
+            status=status.HTTP_200_OK
+        )
+
