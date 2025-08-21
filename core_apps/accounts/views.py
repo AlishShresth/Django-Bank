@@ -215,3 +215,71 @@ class InitiateWithdrawalView(generics.CreateAPIView):
             status=status.HTTP_200_OK
         )
 
+
+class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
+    serializer_class = UsernameVerificationSerializer
+    renderer_classes = [GenericJSONRenderer]
+    object_label = "verify_username_and_withdraw"
+    
+    @transaction.atomic
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        
+        withdrawal_data = request.session.get('withdrawal_data')
+        if not withdrawal_data:
+            return Response(
+                {
+                    "error": "No pending withdrawal found. Please initiate a withdrawal first."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        account_number = withdrawal_data['account_number']
+        amount = Decimal(withdrawal_data['amount'])
+        
+        try:
+            account = BankAccount.objects.get(
+                account_number=account_number, user=request.user
+            )
+        except BankAccount.DoesNotExist:
+            return Response(
+                {"error": f"Account number {account_number} does not exist"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        if account.account_balance < amount:
+            return Response(
+                {"error": "Insufficient funds for withdrawal"},
+                status = status.HTTP_400_BAD_REQUEST
+            )
+        account.account_balance -= amount
+        account.save()
+        
+        withdrawal_transaction = Transaction.objects.create(
+            user=request.user,
+            sender=request.user,
+            sender_account=account,
+            amount=amount,
+            description=f"Withdrawal from account {account_number}",
+            transaction_type = Transaction.TransactionType.WITHDRAWAL,
+            status=Transaction.TransactionStatus.COMPLETED
+        )
+        logger.info(f"Withdrawal of {amount} made from account {account_number}")
+        send_withdrawal_email(
+            user=account.user,
+            user_email=account.user.email,
+            amount=amount,
+            currency=account.currency,
+            new_balance=account.account_balance,
+            account_number=account.account_number,
+        )
+        
+        del request.session['withdrawal_data']
+        
+        return Response(
+            {
+                'message': "Withdrawal completed successfully",
+                'transaction': TransactionSerializer(withdrawal_transaction).data
+            },
+            status=status.HTTP_200_OK
+        )
+        
