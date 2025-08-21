@@ -23,9 +23,28 @@ from .serializers import (
     UsernameVerificationSerializer,
     OTPVerificationSerializer,
     SecurityQuestionSerializer,
+    AccountListSerializer,
 )
 from django.db import transaction
 from loguru import logger
+
+
+class AccountListView(generics.ListAPIView):
+    queryset = BankAccount.objects.all()
+    serializer_class = AccountListSerializer
+    renderer_classes = [GenericJSONRenderer]
+    object_label='account_list'
+    permission_classes = [IsAccountExecutive]
+    
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class AccountVerificationView(generics.UpdateAPIView):
@@ -347,7 +366,7 @@ class VerifySecurityQuestionView(generics.CreateAPIView):
     object_label = "verification_answer"
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = self.get_serializer(request.data, context={"request": request})
+        serializer = self.get_serializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
             request.user.set_otp(otp)
@@ -368,7 +387,7 @@ class VerifyOTPView(generics.CreateAPIView):
     object_label = "verify_otp"
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = self.get_serializer(request.data, context={"request": request})
+        serializer = self.get_serializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             return self.process_transfer(request)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -436,5 +455,5 @@ class VerifyOTPView(generics.CreateAPIView):
         )
         return Response(
             TransactionSerializer(transfer_transaction).data,
-            status=status.HTTP_201_OK,
+            status=status.HTTP_201_CREATED,
         )
