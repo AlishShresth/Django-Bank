@@ -4,6 +4,31 @@ from decimal import Decimal
 from .models import BankAccount, Transaction
 
 
+class UUIDField(serializers.Field):
+    def to_representation(self, value) -> str:
+        return str(value)
+
+
+class AccountListSerializer(serializers.ModelSerializer):
+    id = UUIDField(read_only=True)
+    user = UUIDField(read_only=True)
+
+    class Meta:
+        model = BankAccount
+        fields = [
+            "id",
+            "user",
+            "account_number",
+            "currency",
+            "account_status",
+            "account_type",
+            "kyc_submitted",
+            "kyc_verified",
+            "fully_activated",
+        ]
+        read_only_fields = ["id"]
+
+
 class AccountVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = BankAccount
@@ -88,11 +113,6 @@ class CustomerInfoSerializer(serializers.ModelSerializer):
         if hasattr(obj.user, "profile") and obj.user.profile.photo_url:
             return obj.user.profile.photo_url
         return None
-
-
-class UUIDField(serializers.Field):
-    def to_representation(self, value) -> str:
-        return str(value)
 
 
 class TransactionSerializer(serializers.ModelSerializer):
