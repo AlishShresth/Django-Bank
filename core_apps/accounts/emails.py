@@ -142,7 +142,7 @@ def send_transfer_otp_email(email, otp) -> None:
     recipient_list = [email]
     context = {
         "otp": otp,
-        "expiry_time": settings.OTP_EXPIRY_TIME,
+        "expiry_time": settings.OTP_EXPIRATION,
         "site_name": settings.SITE_NAME
     }
     html_email = render_to_string("emails/transfer_otp_email.html", context)
