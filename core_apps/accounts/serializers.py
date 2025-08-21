@@ -153,30 +153,30 @@ class TransactionSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         _("Insufficient funds for withdrawal")
                     )
-                elif transaction_type == Transaction.TransactionType.DEPOSIT:
-                    account = BankAccount.objects.get(
-                        account_number=receiver_account_number
-                    )
-                    data["sender_account"] = None
-                    data["receiver_account"] = account
-                else:
-                    sender_account = BankAccount.objects.get(
-                        account_number=sender_account_number
-                    )
-                    receiver_account = BankAccount.objects.get(
-                        account_number=receiver_account_number
-                    )
-                    data["sender_account"] = sender_account
-                    data["receiver_account"] = receiver_account
+            elif transaction_type == Transaction.TransactionType.DEPOSIT:
+                account = BankAccount.objects.get(
+                    account_number=receiver_account_number
+                )
+                data["sender_account"] = None
+                data["receiver_account"] = account
+            else:
+                sender_account = BankAccount.objects.get(
+                    account_number=sender_account_number
+                )
+                receiver_account = BankAccount.objects.get(
+                    account_number=receiver_account_number
+                )
+                data["sender_account"] = sender_account
+                data["receiver_account"] = receiver_account
 
-                    if sender_account == receiver_account:
-                        raise serializers.ValidationError(
-                            _("Sender and receiver accounts must be different")
-                        )
-                    if sender_account.currency != receiver_account.currency:
-                        raise serializers.ValidationError(
-                            _("Insufficient funds for transfer")
-                        )
+                if sender_account == receiver_account:
+                    raise serializers.ValidationError(
+                        _("Sender and receiver accounts must be different")
+                    )
+                if sender_account.currency != receiver_account.currency:
+                    raise serializers.ValidationError(
+                        _("Insufficient funds for transfer")
+                    )
         except BankAccount.DoesNotExist:
             raise serializers.ValidationError(_("One or both accounts not found"))
         return data
