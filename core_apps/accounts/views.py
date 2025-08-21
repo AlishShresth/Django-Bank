@@ -20,6 +20,8 @@ from .serializers import (
     CustomerInfoSerializer,
     TransactionSerializer,
     UsernameVerificationSerializer,
+    OTPVerificationSerializer,
+    SecurityQuestionSerializer,
 )
 from django.db import transaction
 from loguru import logger
@@ -191,28 +193,28 @@ class InitiateWithdrawalView(generics.CreateAPIView):
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        amount = serializer.validated_data['amount']
+        amount = serializer.validated_data["amount"]
 
         if account.account_balance < amount:
             return Response(
                 {"error": "Insufficient funds for withdrawal"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        request.session['withdrawal_data'] = {
-            'account_number': account_number,
-            'amount': str(amount),
+        request.session["withdrawal_data"] = {
+            "account_number": account_number,
+            "amount": str(amount),
         }
-        logger.info('Withdrawal data stored in session')
+        logger.info("Withdrawal data stored in session")
 
         return Response(
-            {"message": "Withdrawal Initiated. Please verify your username to complete the withdrawal", 'next_step': 'Verify your username to complete the withdrawal'},
-            status=status.HTTP_200_OK
+            {
+                "message": "Withdrawal Initiated. Please verify your username to complete the withdrawal",
+                "next_step": "Verify your username to complete the withdrawal",
+            },
+            status=status.HTTP_200_OK,
         )
 
 
@@ -220,23 +222,25 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
     serializer_class = UsernameVerificationSerializer
     renderer_classes = [GenericJSONRenderer]
     object_label = "verify_username_and_withdraw"
-    
+
     @transaction.atomic
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
-        
-        withdrawal_data = request.session.get('withdrawal_data')
+
+        withdrawal_data = request.session.get("withdrawal_data")
         if not withdrawal_data:
             return Response(
                 {
                     "error": "No pending withdrawal found. Please initiate a withdrawal first."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        account_number = withdrawal_data['account_number']
-        amount = Decimal(withdrawal_data['amount'])
-        
+        account_number = withdrawal_data["account_number"]
+        amount = Decimal(withdrawal_data["amount"])
+
         try:
             account = BankAccount.objects.get(
                 account_number=account_number, user=request.user
@@ -249,19 +253,19 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
         if account.account_balance < amount:
             return Response(
                 {"error": "Insufficient funds for withdrawal"},
-                status = status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
         account.account_balance -= amount
         account.save()
-        
+
         withdrawal_transaction = Transaction.objects.create(
             user=request.user,
             sender=request.user,
             sender_account=account,
             amount=amount,
             description=f"Withdrawal from account {account_number}",
-            transaction_type = Transaction.TransactionType.WITHDRAWAL,
-            status=Transaction.TransactionStatus.COMPLETED
+            transaction_type=Transaction.TransactionType.WITHDRAWAL,
+            status=Transaction.TransactionStatus.COMPLETED,
         )
         logger.info(f"Withdrawal of {amount} made from account {account_number}")
         send_withdrawal_email(
@@ -272,14 +276,65 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
             new_balance=account.account_balance,
             account_number=account.account_number,
         )
-        
-        del request.session['withdrawal_data']
-        
+
+        del request.session["withdrawal_data"]
+
         return Response(
             {
-                'message': "Withdrawal completed successfully",
-                'transaction': TransactionSerializer(withdrawal_transaction).data
+                "message": "Withdrawal completed successfully",
+                "transaction": TransactionSerializer(withdrawal_transaction).data,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
-        
+
+
+class InitiateTransferView(generics.CreateAPIView):
+    serializer_class = TransactionSerializer
+    renderer_classes = [GenericJSONRenderer]
+    object_label = "initiate_transfer"
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        data = request.data.copy()
+        data["transaction_type"] = Transaction.TransactionType.TRANSFER
+
+        sender_account_number = data.get("sender_account")
+        receiver_account_number = data.get("receiver_account")
+
+        try:
+            sender_account = BankAccount.objects.get(
+                account_number=sender_account_number, user=request.user
+            )
+            if not (sender_account.fully_activated and sender_account.kyc_verified):
+                return Response(
+                    {
+                        "error": "This account is not fully verified. Please complete the verification process by visiting any of our local bank branches.",
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        except BankAccount.DoesNotExist:
+            return Response(
+                {
+                    "error": "Sender account number not found or you are not authorized to use this account."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        serializer = self.get_serializer(data=data)
+
+        if serializer.is_valid():
+            request.session["transfer_data"] = {
+                "sender_account": sender_account_number,
+                "receiver_account": receiver_account_number,
+                "amount": str(serializer.validated_data["amount"]),
+                "description": serializer.validated_data.get("description", ""),
+            }
+            return Response(
+                {
+                    "message": "Please answer your security question to proceed with the transfer",
+                    "next_step": "verify security question",
+                },
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+        )
