@@ -27,15 +27,20 @@ from .serializers import (
 )
 from django.db import transaction
 from loguru import logger
+from .pagination import StandardResultsSetPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from dateutil import parser
+from django.db.models import Q
+from rest_framework.filters import OrderingFilter
 
 
-class AccountListView(generics.ListAPIView):
+class AccountListAPIView(generics.ListAPIView):
     queryset = BankAccount.objects.all()
     serializer_class = AccountListSerializer
     renderer_classes = [GenericJSONRenderer]
-    object_label='account_list'
+    object_label = "account_list"
     permission_classes = [IsAccountExecutive]
-    
+
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -366,7 +371,9 @@ class VerifySecurityQuestionView(generics.CreateAPIView):
     object_label = "verification_answer"
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
         if serializer.is_valid():
             otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
             request.user.set_otp(otp)
@@ -387,7 +394,9 @@ class VerifyOTPView(generics.CreateAPIView):
     object_label = "verify_otp"
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        serializer = self.get_serializer(data=request.data, context={"request": request})
+        serializer = self.get_serializer(
+            data=request.data, context={"request": request}
+        )
         if serializer.is_valid():
             return self.process_transfer(request)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -457,3 +466,58 @@ class VerifyOTPView(generics.CreateAPIView):
             TransactionSerializer(transfer_transaction).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class TransactionListAPIView(generics.ListAPIView):
+    serializer_class = TransactionSerializer
+    pagination_class = StandardResultsSetPagination
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ["created_at", "amount"]
+    order = ["-created_at"]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = Transaction.objects.filter(Q(sender=user) | Q(receiver=user))
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+        account_number = self.request.query_params.get("account_number")
+
+        if start_date:
+            try:
+                start_date = parser.parse(start_date)
+                queryset = queryset.filter(created_at__gte=start_date)
+            except ValueError:
+                pass
+
+        if end_date:
+            try:
+                end_date = parser.parse(end_date)
+                queryset = queryset.filter(created_at__lte=end_date)
+            except ValueError:
+                pass
+
+        if account_number:
+            try:
+                account = BankAccount.objects.get(
+                    account_number=account_number, user=user
+                )
+                queryset = queryset.filter(
+                    Q(sender_account=account) | Q(receiver_account=account)
+                )
+            except BankAccount.DoesNotExist:
+                queryset = Transaction.objects.none()
+
+        return queryset
+
+    def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        response = super().list(request, *args, **kwargs)
+        account_number = request.query_params.get("account_number")
+        if account_number:
+            logger.info(
+                f"User {request.user.email} successfully retrieved transactions for account: {account_number}"
+            )
+        else:
+            logger.info(
+                f"User {request.user.email} successfully retrieved transactions (all accounts)"
+            )
+        return response
