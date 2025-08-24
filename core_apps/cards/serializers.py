@@ -9,7 +9,7 @@ from .utils import generate_card_number, generate_cvv
 
 
 class VirtualCardSerializer(serializers.ModelSerializer):
-    id = models.UUIDField(read_only=True)
+    id = models.UUIDField()
     balance = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal("0.1")
     )
