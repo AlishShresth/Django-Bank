@@ -70,3 +70,31 @@ class VirtualCardDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                 "You can't perform this action, because the card does not belong to you"
             )
         return obj
+
+    def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        try:
+            instance = self.get_object()
+            if instance.balance > 0:
+                return Response(
+                    {"error": "Cannot delete a card with non-zero balance"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            self.destroy(instance)
+            logger.info(
+                f"Visa card number {instance.card_number}, belonging to {instance.user.full_name} destroyed"
+            )
+            return Response(
+                {"message": "Card successfully deleted"}, status=status.HTTP_200_OK
+            )
+        except VirtualCard.DoesNotExist:
+            return Response(
+                {"error": "Card not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        except PermissionDenied as e:
+            return Response({"error": str(e)})
+        except Exception as e:
+            logger.error(f"Error deleting card: {str(e)}")
+            return Response(
+                {"error": "An unexpected error occurred while deleting the card"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
