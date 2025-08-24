@@ -79,7 +79,7 @@ class VirtualCardDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
                     {"error": "Cannot delete a card with non-zero balance"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            self.destroy(instance)
+            instance.soft_delete(deleted_by=request.user)
             logger.info(
                 f"Visa card number {instance.card_number}, belonging to {instance.user.full_name} destroyed"
             )
