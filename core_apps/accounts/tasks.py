@@ -3,7 +3,7 @@ from celery import shared_task
 from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db.models import EmailMessage
+from django.core.mail import EmailMessage
 from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from loguru import logger
@@ -40,7 +40,7 @@ def generate_transaction_pdf(user_id, start_date, end_date, account_number=None)
 
         doc = SimpleDocTemplate(
             buffer,
-            pageSize=landscape(letter),
+            pagesize=landscape(letter),
             rightMargin=30,
             leftMargin=30,
             topMargin=30,
