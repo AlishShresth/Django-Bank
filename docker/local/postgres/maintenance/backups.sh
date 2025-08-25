@@ -13,6 +13,6 @@ source "${working_dir}/_sourced/messages.sh"
 
 message_welcome "These are the backups that you have created so far:"
 
-echo "Timestamp               Size      Filename"
-echo "---------------------   -----     --------"
-ls -lht "${BACKUP_DIR_PATH}" | awk 'NR>1 {printf "%-21s %-7 %s\n", $6" "$7" "$8, $5, $9}'
+echo "Timestamp           Size  Filename"
+echo "---------------     ----- --------"
+ls -lht "${BACKUP_DIR_PATH}" | awk 'NR>1 {printf "%-21s %-7s %s\n", $6" "$7" "$8, $5, $9}'

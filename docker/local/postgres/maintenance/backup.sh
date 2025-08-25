@@ -24,7 +24,7 @@ export PGUSER="${POSTGRES_USER}"
 export PGPASSWORD="${POSTGRES_PASSWORD}"
 export PGDATABASE="${POSTGRES_DB}"
 
-backup_filename="${BACKUP_FILE_PREFIX}_$(date+'%Y_%m_%dT%H_%M_%S').sql.gz"
+backup_filename="${BACKUP_FILE_PREFIX}_$(date +'%Y_%m_%dT%H_%M_%S').sql.gz"
 
 if ! pg_dump | gzip > "${BACKUP_DIR_PATH}/${backup_filename}";then
   message_error "Database backup failed. Please check the PostgreSQL logs for more information"
