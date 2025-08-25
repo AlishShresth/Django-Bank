@@ -9,9 +9,7 @@ yes_no(){
   
   read -r -p "${arg1} (y/[n])? " response
   
-  if [[ "${response}" =~ ^[Yy]$ ]]
-  
-  then
+  if [[ "${response}" =~ ^[Yy]$ ]]; then
     return 0
   else
     return 1
