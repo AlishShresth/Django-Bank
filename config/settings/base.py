@@ -40,6 +40,7 @@ THIRD_PARTY_APPS = [
     "django_filters",
     "djcelery_email",
     "django_celery_beat",
+    "corsheaders",
 ]
 
 LOCAL_APPS = [
@@ -55,6 +56,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -235,7 +237,7 @@ CELERY_BEAT_SCHEDULE = {
     "apply-daily-interest": {
         "task": "apply_daily_interest",
     },
-    "detect-suspicious-activities": {"task": "detect_suspicious_activities"}
+    "detect-suspicious-activities": {"task": "detect_suspicious_activities"},
 }
 
 CLOUDINARY_CLOUD_NAME = getenv("CLOUDINARY_CLOUD_NAME")
@@ -292,3 +294,12 @@ LOGGING = {
     "handlers": {"loguru": {"class": "interceptor.InterceptHandler"}},
     "root": {"handlers": ["loguru"], "level": "DEBUG"},
 }
+
+CORS_ALLOWED_ORIGINS = [
+    conf for conf in getenv("CORS_ALLOWED_ORIGINS").split(",") if conf
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    conf for conf in getenv("CSRF_TRUSTED_ORIGINS").split(",") if conf
+]
