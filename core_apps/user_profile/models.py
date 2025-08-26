@@ -325,7 +325,7 @@ class NextOfKin(TimeStampedModel):
     date_of_birth = models.DateField(_("Date of Birth"))
     gender = models.CharField(_("Gender"), max_length=8, choices=Gender.choices)
     relationship = models.CharField(_("Relationship"), max_length=50)
-    email_address = models.EmailField(_("Email Address"), db_index=True)
+    email_address = models.EmailField(_("Email Address"), db_index=True, blank=True, null=True)
     phone_number = PhoneNumberField(_("Phone Number"))
     address = models.CharField(_("Address"), max_length=100)
     city = models.CharField(_("City"), max_length=50)

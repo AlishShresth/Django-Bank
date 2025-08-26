@@ -19,7 +19,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
 
     class AccountStatus(models.TextChoices):
         ACTIVE = ("active", _("Active"))
-        INACTIVE = ("in-active", _("In-active"))
+        INACTIVE = ("inactive", _("Inactive"))
         BLOCKED = ("blocked", _("Blocked"))
 
     class AccountCurrency(models.TextChoices):

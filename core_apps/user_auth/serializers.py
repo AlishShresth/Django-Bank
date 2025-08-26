@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from djoser.serializers import (
   UserCreateSerializer as DjoserUserCreateSerialzier,
+  UserSerializer as DjoserUserSerializer,
 )
 
 
@@ -17,3 +18,11 @@ class UserCreateSerializer(DjoserUserCreateSerialzier):
   def create(self, validated_data):
     user = User.objects.create_user(**validated_data)
     return user
+
+
+class UserSerializer(DjoserUserSerializer):
+  class Meta(DjoserUserSerializer.Meta):
+    model = User
+    fields = [
+      "email", "username", "first_name", "last_name", "id_no", "full_name", "role"
+    ]

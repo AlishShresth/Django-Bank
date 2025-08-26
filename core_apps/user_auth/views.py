@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .emails import send_otp_email
 from .utils import generate_otp
+from .serializers import UserSerializer
 
 
 User = get_user_model()
@@ -168,10 +169,11 @@ class OTPVerifyView(APIView):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
-
+        
         response = Response(
             {
-                "success": "Login successful. Now add your profile information, so that we can create an account for you."
+                "success": "Login successful. Now add your profile information, so that we can create an account for you.",
+                "user": UserSerializer(user).data
             },
             status=status.HTTP_200_OK,
         )

@@ -35,6 +35,7 @@ class User(AbstractUser, SoftDeleteModel):
         ACCOUNT_EXECUTIVE = "account_executive", _("Account Executive")
         TELLER = "teller", _("Teller")
         BRANCH_MANAGER = "branch_manager", _("Branch Manager")
+        BUSINESS_CLIENT = "business_client", _("Business Client")
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = models.CharField(_("Username"), max_length=12, unique=True)
