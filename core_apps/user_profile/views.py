@@ -147,7 +147,7 @@ class NextOfKinAPIView(generics.ListCreateAPIView):
     object_label = "next_of_kin"
 
     def get_queryset(self) -> List[NextOfKin]:
-        return NextOfKin.objects.filter(profile=self.request.user.profile)
+        return NextOfKin.objects.filter(profile=self.request.user.profile).order_by('created_at')
 
     def get_serializer_context(self) -> dict[str, Any]:
         context = super().get_serializer_context()
