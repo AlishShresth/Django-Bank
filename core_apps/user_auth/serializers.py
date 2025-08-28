@@ -24,5 +24,5 @@ class UserSerializer(DjoserUserSerializer):
   class Meta(DjoserUserSerializer.Meta):
     model = User
     fields = [
-      "email", "username", "first_name", "last_name", "id_no", "full_name", "role"
+      "email", "username", "first_name", "last_name", "id_no", "full_name", "role", "date_joined", "last_login"
     ]
