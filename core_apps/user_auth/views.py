@@ -80,6 +80,8 @@ class CustomTokenCreateView(TokenCreateView):
             email = request.data.get("email")
             user = User.objects.filter(email=email).first()
             if user:
+                if user.otp and user.otp_expiry_time is not None:
+                    return self._action(serializer)
                 user.handle_failed_login_attempts()
                 failed_attempts = user.failed_login_attempts
                 logger.error(
