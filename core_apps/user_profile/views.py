@@ -218,9 +218,17 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"message": "Next of Kin deleted successfully"},
-            status=status.HTTP_200_OK,
-        )
+        try:
+            instance = self.get_object()
+            if(instance.is_primary):
+                return Response({'errors': 'Primary Next of Kin cannot be deleted. Please select a different primary next of kin first and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(f'Next of kin instance: {instance} deleted by {self.request.user}')
+            self.perform_destroy(instance)
+            return Response(
+                {"message": "Next of Kin deleted successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            logger.exception(e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+

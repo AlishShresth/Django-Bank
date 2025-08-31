@@ -346,7 +346,7 @@ class NextOfKin(TimeStampedModel):
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
-        return f"{self.first_name} {self.last_name} - Next of Kind for {self.profile.user.full_name}"
+        return f"{self.first_name} {self.last_name} - Next of Kin for {self.profile.user.full_name}"
 
     class Meta:
         constraints = [
