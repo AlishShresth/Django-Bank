@@ -197,17 +197,38 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def update(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        partial = kwargs.pop("partial", False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
+        try:
+            partial = kwargs.pop("partial", False)
+            instance = self.get_object()
+            is_primary = request.data.get('is_primary')
+            if(is_primary):
+                primary_next_of_kin = NextOfKin.objects.filter(profile=instance.profile, is_primary=True).first()
+                if(primary_next_of_kin):
+                    primary_next_of_kin.is_primary = False
+                    primary_next_of_kin.save()
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        except serializers.ValidationError as e:
+            logger.exception(e)
+            return Response({"errors": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response(
-            {"message": "Next of Kin deleted successfully"},
-            status=status.HTTP_200_OK,
-        )
+        try:
+            instance = self.get_object()
+            if(instance.is_primary):
+                return Response({'errors': 'Primary Next of Kin cannot be deleted. Please select a different primary next of kin first and try again.'}, status=status.HTTP_400_BAD_REQUEST)
+            logger.info(f'Next of kin instance: {instance} deleted by {self.request.user}')
+            self.perform_destroy(instance)
+            return Response(
+                {"message": "Next of Kin deleted successfully"},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            logger.exception(e)
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
