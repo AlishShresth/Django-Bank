@@ -24,6 +24,7 @@ from .serializers import (
     OTPVerificationSerializer,
     SecurityQuestionSerializer,
     AccountListSerializer,
+    AccountDetailSerializer,
 )
 from django.db import transaction
 from loguru import logger
@@ -36,6 +37,11 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework import status
 from .tasks import generate_transaction_pdf
+from django.contrib.auth import get_user_model
+from rest_framework.permissions import IsAuthenticated
+
+
+User = get_user_model()
 
 
 class AccountListAPIView(generics.ListAPIView):
@@ -43,7 +49,15 @@ class AccountListAPIView(generics.ListAPIView):
     serializer_class = AccountListSerializer
     renderer_classes = [GenericJSONRenderer]
     object_label = "account_list"
-    permission_classes = [IsAccountExecutive]
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.role == User.RoleChoices.CUSTOMER:
+            return BankAccount.objects.all().filter(user=self.request.user)
+        elif self.request.user.role == User.RoleChoices.ACCOUNT_EXECUTIVE:
+            return BankAccount.objects.all()
+        else:
+            return BankAccount.objects.none()
 
     def list(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         queryset = self.get_queryset()
@@ -54,6 +68,30 @@ class AccountListAPIView(generics.ListAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class AccountDetailAPIView(generics.RetrieveAPIView):
+    queryset = BankAccount.objects.all().prefetch_related(
+        "sent_transactions", "received_transactions"
+    )
+    serializer_class = AccountDetailSerializer
+    object_label = "account"
+    permission_classes = [IsAuthenticated]
+
+    def retrieve(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        instance = self.get_object()
+        if not instance.user == request.user:
+            if request.user.role not in [
+                User.RoleChoices.ACCOUNT_EXECUTIVE,
+                User.RoleChoices.TELLER,
+                User.RoleChoices.BRACH_MANAGER,
+            ]:
+                return Response(
+                    {"message": "You do not have the permission to view this account"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AccountVerificationView(generics.UpdateAPIView):
@@ -557,15 +595,15 @@ class TransactionPDFView(APIView):
         except ValueError as e:
             return Response(
                 {"error": f"Invalid date format: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         generate_transaction_pdf.delay(user.id, start_date, end_date, account_number)
-        
+
         return Response(
             {
-                'message': 'Your Transaction history PDF is being generated and will be sent to your email shortly',
-                'email': user.email
+                "message": "Your Transaction history PDF is being generated and will be sent to your email shortly",
+                "email": user.email,
             },
             status=status.HTTP_202_ACCEPTED,
         )

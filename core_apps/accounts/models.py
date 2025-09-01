@@ -163,7 +163,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         super().save(*args, **kwargs)
 
 
-class Transaction(TimeStampedModel):
+class Transaction(TimeStampedModel, SoftDeleteModel):
     class TransactionStatus(models.TextChoices):
         PENDING = ("pending", _("Pending"))
         COMPLETED = ("completed", _("Completed"))
