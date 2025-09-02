@@ -203,6 +203,8 @@ DJOSER = {
     "SERIALIZERS": {
         "user_create": "core_apps.user_auth.serializers.UserCreateSerializer",
     },
+    "EMAIL_FRONTEND_PROTOCOL": "http",
+    "EMAIL_FRONTEND_DOMAIN": "localhost:3000",
 }
 
 SPECTACULAR_SETTINGS = {

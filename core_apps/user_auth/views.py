@@ -82,6 +82,10 @@ class CustomTokenCreateView(TokenCreateView):
             if user:
                 if user.otp and user.otp_expiry_time is not None:
                     return self._action(serializer)
+                if not user.is_active:
+                    return Response({
+                        'message': "Please activate your account before trying to login. An activation email should have been sent to your email. If you cannot find the activation email please check your spam folder or click on the resend activation email button."
+                    }, status=status.HTTP_202_ACCEPTED)
                 user.handle_failed_login_attempts()
                 failed_attempts = user.failed_login_attempts
                 logger.error(
@@ -179,6 +183,8 @@ class OTPVerifyView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+        user.last_login = timezone.now()
+        user.save()
         set_auth_cookies(response, access_token, refresh_token)
         logger.info(f"Successful login with OTP: {user.email}")
         return response
