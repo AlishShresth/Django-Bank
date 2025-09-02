@@ -26,3 +26,4 @@ class UserSerializer(DjoserUserSerializer):
     fields = [
       "email", "username", "first_name", "last_name", "id_no", "full_name", "role", "date_joined", "last_login"
     ]
+    read_only_field=["last_login"]
