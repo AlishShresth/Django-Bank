@@ -67,6 +67,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         choices=BankAccount.AccountCurrency.choices
     )
     account_type = serializers.ChoiceField(choices=BankAccount.AccountType.choices)
+    last_login = serializers.DateTimeField(source="user.last_login", read_only=True)
 
     class Meta:
         model = Profile
@@ -114,6 +115,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "view_count",
             "account_currency",
             "account_type",
+            "last_login",
         ]
         read_only_fields = [
             "user",
@@ -122,6 +124,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email",
             "created_at",
             "updated_at",
+            "last_login",
         ]
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
