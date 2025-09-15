@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
     "djcelery_email",
     "django_celery_beat",
     "corsheaders",
+    "debug_toolbar",
 ]
 
 LOCAL_APPS = [
@@ -56,6 +57,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

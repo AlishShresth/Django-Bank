@@ -33,3 +33,11 @@ LOCKOUT_DURATION = timedelta(minutes=1)
 LOGIN_ATTEMPTS = 3
 
 OTP_EXPIRATION = timedelta(minutes=3)
+
+INTERNAL_IPS = [
+    '127.0.0.1'
+]
+
+DEBUG_TOOLBAR_CONFIG = {
+    'SHOW_TOOLBAR_CALLBACK': lambda request: True
+}
