@@ -15,7 +15,7 @@ class VirtualCardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VirtualCard
-        fields = ["id", "card_number", "expiry_date", "cvv", "balance", "status"]
+        fields = ["id", "card_number", "expiry_date", "cvv", "balance", "status", "card_type", "debit_cards_count", "credit_cards_count"]
         read_only_fields = ["id", "card_number", "expiry_date", "cvv"]
 
 
@@ -37,8 +37,8 @@ class VirtualCardCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data) -> dict:
         user = validated_data.get("user")
         bank_account_number = validated_data.pop("bank_account_number")
-
         bank_account = user.bank_accounts.get(account_number=bank_account_number)
+        card_type = validated_data.get("card_type")
         card_number = generate_card_number()
         expiry_date = timezone.now() + timezone.timedelta(days=365 * 3)
         cvv = generate_cvv(card_number, expiry_date.strftime("%m%y"))
@@ -46,6 +46,7 @@ class VirtualCardCreateSerializer(serializers.ModelSerializer):
         virtual_card = VirtualCard.objects.create(
             user=user,
             bank_account=bank_account,
+            card_type=card_type,
             card_number=card_number,
             expiry_date=expiry_date,
             cvv=cvv,

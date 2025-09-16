@@ -56,6 +56,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "debug_toolbar.middleware.DebugToolbarMiddleware",
     "corsheaders.middleware.CorsMiddleware",
