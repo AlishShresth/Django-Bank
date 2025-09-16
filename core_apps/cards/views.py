@@ -15,10 +15,16 @@ from .serializers import VirtualCardCreateSerializer, VirtualCardSerializer
 
 class VirtualCardListCreateAPIView(generics.ListCreateAPIView):
     renderer_classes = [GenericJSONRenderer]
-    object_label = "visa_card"
+    object_label = "card_list"
 
     def get_queryset(self):
-        return VirtualCard.objects.filter(user=self.request.user)
+        return (
+            VirtualCard.objects.select_related(
+                "user", "bank_account", "bank_account__user"
+            )
+            .filter(user=self.request.user)
+            .order_by("card_number")
+        )
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -61,7 +67,9 @@ class VirtualCardDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     object_label = "virtual_card"
 
     def get_queryset(self):
-        return VirtualCard.objects.filter(user=self.request.user)
+        return VirtualCard.objects.select_related(
+            "user", "bank_account", "bank_account__user"
+        ).filter(user=self.request.user)
 
     def get_object(self):
         obj = super().get_object()
@@ -130,25 +138,36 @@ class VirtualCardTopUpAPIView(generics.UpdateAPIView):
                 {"error": "Amount must be greater than zero"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        bank_account =virtual_card.bank_account
+
+        bank_account = virtual_card.bank_account
         if bank_account.account_balance < amount:
             return Response(
-                {
-                  'error': 'Insufficient funds in the bank account'
-                }, status=status.HTTP_400_BAD_REQUEST
+                {"error": "Insufficient funds in the bank account"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         bank_account.account_balance -= amount
         virtual_card.balance += amount
-        
+
         bank_account.save()
         virtual_card.save()
-        
+
         transaction = Transaction.objects.create(
-            user=request.user, amount=amount, description=f'Top-up for Visa card ending in {virtual_card.card_number[-4:]}', transaction_type=Transaction.TransactionType.DEPOSIT, status=Transaction.TransactionStatus.COMPLETED, sender=request.user, receiver=request.user, sender_account=bank_account, receiver_account=bank_account,
+            user=request.user,
+            amount=amount,
+            description=f"Top-up for Visa card ending in {virtual_card.card_number[-4:]}",
+            transaction_type=Transaction.TransactionType.DEPOSIT,
+            status=Transaction.TransactionStatus.COMPLETED,
+            sender=request.user,
+            receiver=request.user,
+            sender_account=bank_account,
+            receiver_account=bank_account,
         )
-        send_virtual_card_topup_email(request.user, virtual_card, amount, virtual_card.balance)
-        logger.info(f'Visa card {virtual_card.card_number} has been topped up with {amount} by {virtual_card.user.full_name}. Transaction ID: {transaction.id}')
-        
+        send_virtual_card_topup_email(
+            request.user, virtual_card, amount, virtual_card.balance
+        )
+        logger.info(
+            f"Visa card {virtual_card.card_number} has been topped up with {amount} by {virtual_card.user.full_name}. Transaction ID: {transaction.id}"
+        )
+
         return Response(VirtualCardSerializer(virtual_card).data)

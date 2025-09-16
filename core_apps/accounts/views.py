@@ -33,9 +33,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from dateutil import parser
 from django.db.models import Q
 from rest_framework.filters import OrderingFilter
-from django.utils import timezone
 from rest_framework.views import APIView
-from rest_framework import status
 from .tasks import generate_transaction_pdf
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
@@ -53,9 +51,15 @@ class AccountListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         if self.request.user.role == User.RoleChoices.CUSTOMER:
-            return BankAccount.objects.all().filter(user=self.request.user)
+            return (
+                BankAccount.objects.select_related("user", "verified_by")
+                .filter(user=self.request.user)
+                .order_by("account_number")
+            )
         elif self.request.user.role == User.RoleChoices.ACCOUNT_EXECUTIVE:
-            return BankAccount.objects.all()
+            return BankAccount.objects.select_related("user", "verified_by").order_by(
+                "account_number"
+            )
         else:
             return BankAccount.objects.none()
 
@@ -67,13 +71,13 @@ class AccountListAPIView(generics.ListAPIView):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AccountDetailAPIView(generics.RetrieveAPIView):
-    queryset = BankAccount.objects.all().prefetch_related(
-        "sent_transactions", "received_transactions"
-    )
+    queryset = BankAccount.objects.select_related(
+        "user", "verified_by"
+    ).prefetch_related("sent_transactions", "received_transactions")
     serializer_class = AccountDetailSerializer
     object_label = "account"
     permission_classes = [IsAuthenticated]
@@ -95,7 +99,7 @@ class AccountDetailAPIView(generics.RetrieveAPIView):
 
 
 class AccountVerificationView(generics.UpdateAPIView):
-    queryset = BankAccount.objects.all()
+    queryset = BankAccount.objects.select_related("user").defer("verified_by")
     serializer_class = AccountVerificationSerializer
     renderer_classes = [GenericJSONRenderer]
     object_label = "verification"
@@ -125,7 +129,7 @@ class AccountVerificationView(generics.UpdateAPIView):
 
             if kyc_verified and not kyc_submitted:
                 return Response(
-                    {"error": "KYC must be submitted before it can be verified."},
+                    {"message": "KYC must be submitted before it can be verified."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             instance.kyc_submitted = kyc_submitted
@@ -147,10 +151,7 @@ class AccountVerificationView(generics.UpdateAPIView):
                 send_full_activation_email(instance)
 
             return Response(
-                {
-                    "message": "Account Verification status updated successfully",
-                    "data": self.get_serializer(instance).data,
-                }
+                self.get_serializer(instance).data, status=status.HTTP_200_OK
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -165,7 +166,7 @@ class DepositView(generics.CreateAPIView):
         account_number = request.query_params.get("account_number")
         if not account_number:
             return Response(
-                {"error": "Account number is required"},
+                {"message": "Account number is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -174,7 +175,7 @@ class DepositView(generics.CreateAPIView):
             return Response(serializer.data)
         except BankAccount.DoesNotExist:
             return Response(
-                {"error": "Account number does not exists"},
+                {"message": "Account number does not exists"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -211,7 +212,7 @@ class DepositView(generics.CreateAPIView):
         except Exception as e:
             logger.error(f"Error during deposit: {str(e)}")
             return Response(
-                {"error": "An error occured during the deposit"},
+                {"message": "An error occurred during the deposit"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -227,7 +228,7 @@ class InitiateWithdrawalView(generics.CreateAPIView):
 
         if not account_number:
             return Response(
-                {"error": "Account number is required"},
+                {"message": "Account number is required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -239,7 +240,7 @@ class InitiateWithdrawalView(generics.CreateAPIView):
             if not (account.fully_activated and account.kyc_verified):
                 return Response(
                     {
-                        "error": "Your account is not fully verified. Please complete the verification process"
+                        "message": "Your account is not fully verified. Please complete the verification process"
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
@@ -260,13 +261,13 @@ class InitiateWithdrawalView(generics.CreateAPIView):
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         amount = serializer.validated_data["amount"]
 
         if account.account_balance < amount:
             return Response(
-                {"error": "Insufficient funds for withdrawal"},
+                {"message": "Insufficient funds for withdrawal"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -301,7 +302,7 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
         if not withdrawal_data:
             return Response(
                 {
-                    "error": "No pending withdrawal found. Please initiate a withdrawal first."
+                    "message": "No pending withdrawal found. Please initiate a withdrawal first."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -309,17 +310,17 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
         amount = Decimal(withdrawal_data["amount"])
 
         try:
-            account = BankAccount.objects.get(
+            account = BankAccount.objects.select_related("user").get(
                 account_number=account_number, user=request.user
             )
         except BankAccount.DoesNotExist:
             return Response(
-                {"error": f"Account number {account_number} does not exist"},
+                {"message": f"Account number {account_number} does not exist"},
                 status=status.HTTP_404_NOT_FOUND,
             )
         if account.account_balance < amount:
             return Response(
-                {"error": "Insufficient funds for withdrawal"},
+                {"message": "Insufficient funds for withdrawal"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         account.account_balance -= amount
@@ -347,10 +348,7 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
         del request.session["withdrawal_data"]
 
         return Response(
-            {
-                "message": "Withdrawal completed successfully",
-                "transaction": TransactionSerializer(withdrawal_transaction).data,
-            },
+            TransactionSerializer(withdrawal_transaction).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -359,6 +357,7 @@ class InitiateTransferView(generics.CreateAPIView):
     serializer_class = TransactionSerializer
     renderer_classes = [GenericJSONRenderer]
     object_label = "initiate_transfer"
+    permission_classes = [IsAuthenticated]
 
     def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         data = request.data.copy()
@@ -374,14 +373,14 @@ class InitiateTransferView(generics.CreateAPIView):
             if not (sender_account.fully_activated and sender_account.kyc_verified):
                 return Response(
                     {
-                        "error": "This account is not fully verified. Please complete the verification process by visiting any of our local bank branches.",
+                        "message": "This account is not fully verified. Please complete the verification process by visiting any of our local bank branches.",
                     },
                     status=status.HTTP_403_FORBIDDEN,
                 )
         except BankAccount.DoesNotExist:
             return Response(
                 {
-                    "error": "Sender account number not found or you are not authorized to use this account."
+                    "message": "Sender account number not found or you are not authorized to use this account."
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
@@ -447,7 +446,7 @@ class VerifyOTPView(generics.CreateAPIView):
         transfer_data = request.session.get("transfer_data")
         if not transfer_data:
             return Response(
-                {"error": "Transfer data not found. Please start the process again."},
+                {"message": "Transfer data not found. Please start the process again."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
@@ -459,14 +458,14 @@ class VerifyOTPView(generics.CreateAPIView):
             )
         except BankAccount.DoesNotExist:
             return Response(
-                {"error": "One or both accounts not found"},
+                {"message": "One or both accounts not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         amount = Decimal(transfer_data["amount"])
         if sender_account.account_balance < amount:
             return Response(
-                {"error": "Insufficient funds for transfer"},
+                {"message": "Insufficient funds for transfer"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         sender_account.account_balance -= amount
@@ -512,6 +511,8 @@ class VerifyOTPView(generics.CreateAPIView):
 
 class TransactionListAPIView(generics.ListAPIView):
     serializer_class = TransactionSerializer
+    renderer_classes = [GenericJSONRenderer]
+    object_label = "transaction_list"
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ["created_at", "amount"]
@@ -519,7 +520,19 @@ class TransactionListAPIView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Transaction.objects.filter(Q(sender=user) | Q(receiver=user))
+        queryset = (
+            Transaction.objects.select_related(
+                "user",
+                "receiver",
+                "sender",
+                "receiver_account",
+                "sender_account",
+                "sender_account__user",
+                "receiver_account__user",
+            )
+            .filter(Q(sender=user) | Q(receiver=user))
+            .exclude(transaction_type="interest")
+        )
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")
         account_number = self.request.query_params.get("account_number")
@@ -540,7 +553,7 @@ class TransactionListAPIView(generics.ListAPIView):
 
         if account_number:
             try:
-                account = BankAccount.objects.get(
+                account = BankAccount.objects.select_related("user").get(
                     account_number=account_number, user=user
                 )
                 queryset = queryset.filter(
@@ -568,6 +581,7 @@ class TransactionListAPIView(generics.ListAPIView):
 class TransactionPDFView(APIView):
     renderer_classes = [GenericJSONRenderer]
     object_label = "transaction_pdf"
+    permission_classes = [IsAuthenticated]
 
     def post(self, request: Request) -> Response:
         user = request.user
@@ -594,7 +608,7 @@ class TransactionPDFView(APIView):
             end_date = parser.parse(end_date).date().isoformat()
         except ValueError as e:
             return Response(
-                {"error": f"Invalid date format: {str(e)}"},
+                {"message": f"Invalid date format: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

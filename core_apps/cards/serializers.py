@@ -2,14 +2,13 @@ from decimal import Decimal
 
 from django.utils import timezone
 from rest_framework import serializers
-from django.db import models
 
 from .models import VirtualCard
 from .utils import generate_card_number, generate_cvv
 
 
 class VirtualCardSerializer(serializers.ModelSerializer):
-    id = models.UUIDField()
+    id = serializers.UUIDField()
     balance = serializers.DecimalField(
         max_digits=10, decimal_places=2, min_value=Decimal("0.1")
     )

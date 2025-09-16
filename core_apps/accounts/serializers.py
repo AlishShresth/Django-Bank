@@ -4,15 +4,10 @@ from decimal import Decimal
 from .models import BankAccount, Transaction
 
 
-class UUIDField(serializers.Field):
-    def to_representation(self, value) -> str:
-        return str(value)
-
-
 class AccountListSerializer(serializers.ModelSerializer):
-    id = UUIDField(read_only=True)
-    user = UUIDField(read_only=True)
-
+    id = serializers.UUIDField(read_only=True)
+    user = serializers.UUIDField(read_only=True)
+    annual_interest_rate = serializers.FloatField()
     class Meta:
         model = BankAccount
         fields = [
@@ -27,7 +22,7 @@ class AccountListSerializer(serializers.ModelSerializer):
             "kyc_verified",
             "fully_activated",
             "is_primary",
-            "interest_rate",
+            "annual_interest_rate",
             "created_at",
         ]
         read_only_fields = ["id", "account_balance", "created_at"]
@@ -120,7 +115,7 @@ class CustomerInfoSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    id = UUIDField(read_only=True)
+    id = serializers.UUIDField(read_only=True)
     sender_account = serializers.CharField(max_length=20, required=False)
     receiver_account = serializers.CharField(max_length=20, required=False)
     amount = serializers.DecimalField(
@@ -237,8 +232,8 @@ class UsernameVerificationSerializer(serializers.Serializer):
 
 
 class AccountDetailSerializer(serializers.ModelSerializer):
-    id = UUIDField(read_only=True)
-    user = UUIDField(read_only=True)
+    id = serializers.UUIDField(read_only=True)
+    user = serializers.UUIDField(read_only=True)
     recent_transactions = serializers.SerializerMethodField()
 
     class Meta:
