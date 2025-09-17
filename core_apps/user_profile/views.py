@@ -38,7 +38,7 @@ class ProfileListAPIView(generics.ListAPIView):
     filterset_fields = ["user__first_name", "user__last_name", "user__id_no"]
 
     def get_queryset(self) -> List[Profile]:
-        return Profile.objects.exclude(user__is_staff=True).exclude(
+        return Profile.objects.select_related('user').exclude(user__is_staff=True).exclude(
             user__is_superuser=True
         )
 
@@ -51,7 +51,7 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
 
     def get_object(self) -> Profile:
         try:
-            profile = Profile.objects.get(user=self.request.user)
+            profile = Profile.objects.select_related('user').prefetch_related('next_of_kin').get(user=self.request.user)
             self.record_profile_view(profile)
             return profile
         except Profile.DoesNotExist:
@@ -96,7 +96,7 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
                 updated_instance = serializer.save()
 
                 if updated_instance.is_complete_with_next_of_kin():
-                    existing_account = BankAccount.objects.filter(
+                    existing_account = BankAccount.objects.select_related('user').filter(
                         user=request.user,
                         currency=updated_instance.account_currency,
                         account_type=updated_instance.account_type,
@@ -147,7 +147,7 @@ class NextOfKinAPIView(generics.ListCreateAPIView):
     object_label = "next_of_kin"
 
     def get_queryset(self) -> List[NextOfKin]:
-        return NextOfKin.objects.filter(profile=self.request.user.profile).order_by('created_at')
+        return NextOfKin.objects.select_related('profile').filter(profile=self.request.user.profile).order_by('created_at')
 
     def get_serializer_context(self) -> dict[str, Any]:
         context = super().get_serializer_context()
@@ -183,7 +183,7 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     object_label = "next_of_kin"
 
     def get_queryset(self) -> List[NextOfKin]:
-        return NextOfKin.objects.filter(profile=self.request.user.profile)
+        return NextOfKin.objects.select_related('profile').filter(profile=self.request.user.profile)
 
     def get_object(self) -> NextOfKin:
         queryset = self.get_queryset()

@@ -111,10 +111,10 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
     @property
     def annual_interest_rate(self):
         if self.account_type == self.AccountType.FIXED:
-            return Decimal('0.0500')
+            return Decimal("0.0500")
         if self.account_type != self.AccountType.SAVINGS:
             return Decimal("0.0000")
-        return Decimal('0.0275')
+        return Decimal("0.0275")
         # different interest for different balance
         # balance = self.account_balance
         # if balance < Decimal("100000"):
@@ -125,7 +125,10 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         #     return Decimal("0.0150")
 
     def apply_daily_interest(self):
-        if self.account_type == self.AccountType.SAVINGS or self.account_type == self.AccountType.FIXED:
+        if (
+            self.account_type == self.AccountType.SAVINGS
+            or self.account_type == self.AccountType.FIXED
+        ):
             daily_rate = self.annual_interest_rate / Decimal("365")
             interest = (Decimal(self.account_balance) * daily_rate).quantize(
                 Decimal(".01"), rounding=ROUND_HALF_UP
@@ -161,6 +164,54 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         if self.is_primary:
             BankAccount.objects.filter(user=self.user).update(is_primary=False)
         super().save(*args, **kwargs)
+
+    def record_month_end_balance(self):
+        """Record the current balance as the month-end balance"""
+        from django.utils import timezone
+        from calendar import monthrange
+
+        today = timezone.now().date()
+        _, last_day = monthrange(today.year, today.month)
+        if today.day != last_day:
+            logger.info(f"Today ({today}) is not the last day of the month. Skipping.")
+            return "Not the last day of the month"
+        
+        month = today.replace(day=1)
+        
+        monthly_balance, created = MonthlyBalanceHistory.objects.get_or_create(
+            bank_account=self, month=month, defaults={"balance": self.account_balance}
+        )
+
+        if not created:
+            monthly_balance.balance = self.account_balance
+            monthly_balance.save()
+
+        return monthly_balance
+    
+    @property
+    def balance_change_percentage(self):
+        """Calculate percentage change compared to previous month"""
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        current_month = timezone.now().date().replace(day=1)
+        previous_month = (current_month - timedelta(days=1)).replace(day=1)
+        
+        
+        current_balance = self.account_balance
+        
+        try:
+            previous_balance = self.monthly_balances.get(month=previous_month).balance
+        except MonthlyBalanceHistory.DoesNotExist:
+            return None
+        
+        if previous_balance == 0:
+            return None
+        
+        change = current_balance - previous_balance
+        percentage_change = (change / previous_balance) * 100
+        
+        return percentage_change   
 
 
 class Transaction(TimeStampedModel, SoftDeleteModel):
@@ -225,3 +276,25 @@ class Transaction(TimeStampedModel, SoftDeleteModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["created_at"])]
+
+
+class MonthlyBalanceHistory(TimeStampedModel):
+    bank_account = models.ForeignKey(
+        BankAccount, on_delete=models.CASCADE, related_name="monthly_balances"
+    )
+    balance = models.DecimalField(
+        _("Month End Balance"),
+        decimal_places=2,
+        max_digits=10,
+        default=0.00,
+    )
+    month = models.DateField(_("Month"), db_index=True)
+
+    class Meta:
+        verbose_name = _("Monthly Balance History")
+        verbose_name_plural = _("Monthly Balance Histories")
+        unique_together = ["bank_account", "month"]
+        ordering = ["-month"]
+
+    def __str__(self):
+        return f"{self.bank_account.account_number} - {self.month.strftime('%Y-%m')}: {self.balance}"

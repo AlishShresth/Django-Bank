@@ -41,6 +41,7 @@ THIRD_PARTY_APPS = [
     "djcelery_email",
     "django_celery_beat",
     "corsheaders",
+    "debug_toolbar",
 ]
 
 LOCAL_APPS = [
@@ -55,7 +56,9 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -240,6 +243,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apply_daily_interest",
     },
     "detect-suspicious-activities": {"task": "detect_suspicious_activities"},
+    "record-month-end-balance": {"task": "record_month_end_balance"}
 }
 
 CLOUDINARY_CLOUD_NAME = getenv("CLOUDINARY_CLOUD_NAME")

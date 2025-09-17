@@ -6,6 +6,7 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from debug_toolbar.toolbar import debug_toolbar_urls
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
@@ -27,6 +28,9 @@ urlpatterns = [
     path("api/v1/cards/", include("core_apps.cards.urls")),
 ]
 
-admin.site.site_header = "NextGen Bank Admin"
-admin.site.site_title = "NextGen Bank Admin Portal"
-admin.site.index_title = "Welcome to NextGen Bank Admin Portal"
+if settings.DEBUG:
+    urlpatterns.append(path('__debug__/', include('debug_toolbar.urls')))
+
+admin.site.site_header = "SecureBank Admin"
+admin.site.site_title = "SecureBank Admin Portal"
+admin.site.index_title = "Welcome to SecureBank Admin Portal"

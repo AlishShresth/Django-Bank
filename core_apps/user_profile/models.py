@@ -335,7 +335,7 @@ class NextOfKin(TimeStampedModel):
     def clean(self) -> None:
         super().clean()
         if self.is_primary:
-            primary_kin = NextOfKin.objects.filter(
+            primary_kin = NextOfKin.objects.select_related('profile').filter(
                 profile=self.profile, is_primary=True
             ).exclude(pk=self.pk)
             if primary_kin.exists():

@@ -19,13 +19,8 @@ from .tasks import upload_photos_to_cloudinary
 User = get_user_model()
 
 
-class UUIDField(serializers.Field):
-    def to_representation(self, value: str) -> str:
-        return str(value)
-
-
 class NextOfKinSerializer(serializers.ModelSerializer):
-    id = UUIDField(read_only=True)
+    id = serializers.UUIDField(read_only=True)
     country = CountryField(name_only=True)
     phone_number = PhoneNumberField()
 
@@ -41,7 +36,7 @@ class NextOfKinSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    id = UUIDField(read_only=True)
+    id = serializers.UUIDField(read_only=True)
     first_name = serializers.CharField(source="user.first_name")
     middle_name = serializers.CharField(
         source="user.middle_name", required=False, allow_blank=True
