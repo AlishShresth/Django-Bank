@@ -243,6 +243,7 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apply_daily_interest",
     },
     "detect-suspicious-activities": {"task": "detect_suspicious_activities"},
+    "record-month-end-balance": {"task": "record_month_end_balance"}
 }
 
 CLOUDINARY_CLOUD_NAME = getenv("CLOUDINARY_CLOUD_NAME")

@@ -8,6 +8,8 @@ class AccountListSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     user = serializers.UUIDField(read_only=True)
     annual_interest_rate = serializers.FloatField()
+    balance_change_percentage = serializers.FloatField()
+
     class Meta:
         model = BankAccount
         fields = [
@@ -24,6 +26,7 @@ class AccountListSerializer(serializers.ModelSerializer):
             "is_primary",
             "annual_interest_rate",
             "created_at",
+            "balance_change_percentage"
         ]
         read_only_fields = ["id", "account_balance", "created_at"]
 

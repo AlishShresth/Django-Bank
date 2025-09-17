@@ -221,3 +221,22 @@ def detect_suspicious_activities():
             return "Suspicious activity check completed. Activities detected but alert email failed to send"
 
     return "Suspicious activity check completed. No suspicious activities detected."
+
+
+@shared_task
+def record_month_end_balances():
+    """Task to record month-end balances for all active bank accounts"""
+    active_accounts = BankAccount.objects.filter(
+        account_status=BankAccount.AccountStatus.ACTIVE
+    )
+    
+    recorded_count = 0
+    for account in active_accounts:
+        try:
+            account.record_month_end_balance()
+            recorded_count += 1
+        except Exception as e:
+            logger.error(f"Failed to record month-end balance for account {account.account_number}: {str(e)}")
+    
+    logger.info(f"Recorded month-end balances for {recorded_count} accounts")
+    return f"Recorded month-end balances for {recorded_count} accounts"
