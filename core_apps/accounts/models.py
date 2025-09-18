@@ -21,6 +21,7 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         ACTIVE = ("active", _("Active"))
         INACTIVE = ("inactive", _("Inactive"))
         BLOCKED = ("blocked", _("Blocked"))
+        PENDING = ("pending", _("Pending"))
 
     class AccountCurrency(models.TextChoices):
         DOLLAR = ("us_dollar", _("US Dollar"))

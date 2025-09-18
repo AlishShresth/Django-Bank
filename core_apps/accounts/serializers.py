@@ -26,9 +26,34 @@ class AccountListSerializer(serializers.ModelSerializer):
             "is_primary",
             "annual_interest_rate",
             "created_at",
-            "balance_change_percentage"
+            "balance_change_percentage",
         ]
         read_only_fields = ["id", "account_balance", "created_at"]
+
+
+class AccountCreateSerializer(serializers.ModelSerializer):
+    email = serializers.CharField(required=True)
+    initial_deposit = serializers.DecimalField(
+        decimal_places=2, max_digits=10, required=False
+    )
+
+    class Meta:
+        model = BankAccount
+        fields = ["email", "account_type", "initial_deposit", "currency"]
+
+    def validate(self, data: dict) -> dict:
+        email = data.get("email")
+        account_type = data.get("account_type")
+        currency = data.get("currency")
+
+        if not email:
+            raise serializers.ValidationError(_("Email is required"))
+        if not account_type:
+            raise serializers.ValidationError(_("Account type is required"))
+        if not currency:
+            raise serializers.ValidationError(_("Account currency is required"))
+
+        return data
 
 
 class AccountVerificationSerializer(serializers.ModelSerializer):
@@ -258,20 +283,20 @@ class AccountDetailSerializer(serializers.ModelSerializer):
             "recent_transactions",
         ]
         read_only_fields = ["id", "account_balance", "created_at"]
-    
+
     def get_recent_transactions(self, obj):
-        combined_transactions = list(obj.sent_transactions.exclude(transaction_type="interest")) + list(obj.received_transactions.exclude(transaction_type="interest"))
+        combined_transactions = list(
+            obj.sent_transactions.exclude(transaction_type="interest")
+        ) + list(obj.received_transactions.exclude(transaction_type="interest"))
         sorted_transactions = sorted(
-            combined_transactions,
-            key=lambda t: t.created_at,
-            reverse=True
+            combined_transactions, key=lambda t: t.created_at, reverse=True
         )
-        
+
         # remove duplicate by ID
         deduped_transactions = {}
         for transaction in sorted_transactions:
             deduped_transactions[transaction.id] = transaction
-        
+
         # Convert back to list and limit to 5
         result = list(deduped_transactions.values())[:5]
         return TransactionSerializer(result, many=True).data
