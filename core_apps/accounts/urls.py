@@ -7,14 +7,14 @@ from .views import (
     InitiateTransferView,
     VerifyOTPView,
     VerifySecurityQuestionView,
-    AccountListAPIView,
+    AccountListCreateAPIView,
     AccountDetailAPIView,
     TransactionListAPIView,
     TransactionPDFView,
 )
 
 urlpatterns = [
-    path("accounts/", AccountListAPIView.as_view(), name="all_accounts"),
+    path("accounts/", AccountListCreateAPIView.as_view(), name="all_accounts"),
     path("accounts/<uuid:pk>", AccountDetailAPIView.as_view(), name="get_account"),
     path(
         "verify/<uuid:pk>/",

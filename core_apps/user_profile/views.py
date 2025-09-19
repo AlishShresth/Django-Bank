@@ -21,6 +21,7 @@ from core_apps.accounts.models import BankAccount
 from .models import NextOfKin, Profile
 from .serializers import NextOfKinSerializer, ProfileListSerializer, ProfileSerializer
 
+
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -38,8 +39,10 @@ class ProfileListAPIView(generics.ListAPIView):
     filterset_fields = ["user__first_name", "user__last_name", "user__id_no"]
 
     def get_queryset(self) -> List[Profile]:
-        return Profile.objects.select_related('user').exclude(user__is_staff=True).exclude(
-            user__is_superuser=True
+        return (
+            Profile.objects.select_related("user")
+            .exclude(user__is_staff=True)
+            .exclude(user__is_superuser=True)
         )
 
 
@@ -51,7 +54,11 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
 
     def get_object(self) -> Profile:
         try:
-            profile = Profile.objects.select_related('user').prefetch_related('next_of_kin').get(user=self.request.user)
+            profile = (
+                Profile.objects.select_related("user")
+                .prefetch_related("next_of_kin")
+                .get(user=self.request.user)
+            )
             self.record_profile_view(profile)
             return profile
         except Profile.DoesNotExist:
@@ -96,11 +103,15 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
                 updated_instance = serializer.save()
 
                 if updated_instance.is_complete_with_next_of_kin():
-                    existing_account = BankAccount.objects.select_related('user').filter(
-                        user=request.user,
-                        currency=updated_instance.account_currency,
-                        account_type=updated_instance.account_type,
-                    ).first()
+                    existing_account = (
+                        BankAccount.objects.select_related("user")
+                        .filter(
+                            user=request.user,
+                            currency=updated_instance.account_currency,
+                            account_type=updated_instance.account_type,
+                        )
+                        .first()
+                    )
 
                     if not existing_account:
                         bank_account = create_bank_account(
@@ -123,7 +134,8 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
                         {
                             "message": "Profile updated successfully. Please complete all required fields and add at least one next of kin to create a bank account",
                             "data": serializer.data,
-                        }, status=status.HTTP_200_OK
+                        },
+                        status=status.HTTP_200_OK,
                     )
         except serializers.ValidationError as e:
             logger.exception(e)
@@ -147,7 +159,11 @@ class NextOfKinAPIView(generics.ListCreateAPIView):
     object_label = "next_of_kin"
 
     def get_queryset(self) -> List[NextOfKin]:
-        return NextOfKin.objects.select_related('profile').filter(profile=self.request.user.profile).order_by('created_at')
+        return (
+            NextOfKin.objects.select_related("profile")
+            .filter(profile=self.request.user.profile)
+            .order_by("created_at")
+        )
 
     def get_serializer_context(self) -> dict[str, Any]:
         context = super().get_serializer_context()
@@ -183,7 +199,9 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     object_label = "next_of_kin"
 
     def get_queryset(self) -> List[NextOfKin]:
-        return NextOfKin.objects.select_related('profile').filter(profile=self.request.user.profile)
+        return NextOfKin.objects.select_related("profile").filter(
+            profile=self.request.user.profile
+        )
 
     def get_object(self) -> NextOfKin:
         queryset = self.get_queryset()
@@ -200,13 +218,17 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         try:
             partial = kwargs.pop("partial", False)
             instance = self.get_object()
-            is_primary = request.data.get('is_primary')
-            if(is_primary):
-                primary_next_of_kin = NextOfKin.objects.filter(profile=instance.profile, is_primary=True).first()
-                if(primary_next_of_kin):
+            is_primary = request.data.get("is_primary")
+            if is_primary:
+                primary_next_of_kin = NextOfKin.objects.filter(
+                    profile=instance.profile, is_primary=True
+                ).first()
+                if primary_next_of_kin:
                     primary_next_of_kin.is_primary = False
                     primary_next_of_kin.save()
-            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer = self.get_serializer(
+                instance, data=request.data, partial=partial
+            )
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             return Response(serializer.data)
@@ -220,9 +242,16 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request: Request, *args: Any, **kwargs: Any) -> Response:
         try:
             instance = self.get_object()
-            if(instance.is_primary):
-                return Response({'errors': 'Primary Next of Kin cannot be deleted. Please select a different primary next of kin first and try again.'}, status=status.HTTP_400_BAD_REQUEST)
-            logger.info(f'Next of kin instance: {instance} deleted by {self.request.user}')
+            if instance.is_primary:
+                return Response(
+                    {
+                        "errors": "Primary Next of Kin cannot be deleted. Please select a different primary next of kin first and try again."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            logger.info(
+                f"Next of kin instance: {instance} deleted by {self.request.user}"
+            )
             self.perform_destroy(instance)
             return Response(
                 {"message": "Next of Kin deleted successfully"},
@@ -230,5 +259,4 @@ class NextOfKinDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
             )
         except Exception as e:
             logger.exception(e)
-            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

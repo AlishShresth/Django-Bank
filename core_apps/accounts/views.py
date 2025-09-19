@@ -25,6 +25,7 @@ from .serializers import (
     SecurityQuestionSerializer,
     AccountListSerializer,
     AccountDetailSerializer,
+    AccountCreateSerializer,
 )
 from django.db import transaction
 from loguru import logger
@@ -37,12 +38,13 @@ from rest_framework.views import APIView
 from .tasks import generate_transaction_pdf
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
+from core_apps.accounts.utils import create_bank_account
 
 
 User = get_user_model()
 
 
-class AccountListAPIView(generics.ListAPIView):
+class AccountListCreateAPIView(generics.ListCreateAPIView):
     queryset = BankAccount.objects.all()
     serializer_class = AccountListSerializer
     renderer_classes = [GenericJSONRenderer]
@@ -72,6 +74,66 @@ class AccountListAPIView(generics.ListAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def create(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        serializer = AccountCreateSerializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            if request.user.role == "customer":
+                if hasattr(serializer.validated_data, "initial_deposit"):
+                    serializer.validated_data.initial_deposit = 0
+                user = request.user
+            else:
+                user = User.objects.filter(
+                    email=serializer.validated_data.email
+                ).first()
+
+            if user and user.profile.is_complete_with_next_of_kin():
+                existing_account = (
+                    BankAccount.objects.select_related("user")
+                    .filter(
+                        user=user,
+                        currency=serializer.validated_data.get("currency"),
+                        account_type=serializer.validated_data.get("account_type"),
+                    )
+                    .first()
+                )
+
+                if not existing_account:
+                    bank_account = create_bank_account(
+                        user=user,
+                        currency=serializer.validated_data.get("currency"),
+                        account_type=serializer.validated_data.get("account_type"),
+                    )
+                    message = "New bank account created successfully. An email has been sent to you with further instructions"
+                else:
+                    return Response(
+                        {
+                            "error": "No new account created as one  already exists for this currency and type.",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                return Response(
+                    {
+                        "message": message,
+                        "data": serializer.data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            else:
+                return Response(
+                    {
+                        "message": "Please complete all required fields and add at least one next of kin to create a bank account",
+                        "data": serializer.data,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except serializers.ValidationError as e:
+            logger.exception(e)
+            return Response({"errors": e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AccountDetailAPIView(generics.RetrieveAPIView):
