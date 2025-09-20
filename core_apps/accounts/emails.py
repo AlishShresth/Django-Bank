@@ -45,7 +45,7 @@ def send_full_activation_email(account: BankAccount) -> None:
 
 
 def send_deposit_email(
-    user, user_email, amount, currency, new_balance, account_number
+    user, user_email, amount, currency, new_balance, account_number, reference_number
 ) -> None:
     subject = _("Deposit Confirmation")
     from_email = settings.DEFAULT_FROM_EMAIL
@@ -57,6 +57,7 @@ def send_deposit_email(
         "new_balance": new_balance,
         "account_number": account_number,
         "site_name": settings.SITE_NAME,
+        "reference_number": reference_number,
     }
     html_email = render_to_string("emails/deposit_confirmation.html", context)
     plain_email = strip_tags(html_email)
@@ -72,7 +73,7 @@ def send_deposit_email(
 
 
 def send_withdrawal_email(
-    user, user_email, amount, currency, new_balance, account_number
+    user, user_email, amount, currency, new_balance, account_number, reference_number
 ) -> None:
     subject = _("Withdrawal Confirmation")
     from_email = settings.DEFAULT_FROM_EMAIL
@@ -84,6 +85,7 @@ def send_withdrawal_email(
         "new_balance": new_balance,
         "account_number": account_number,
         "site_name": settings.SITE_NAME,
+        "reference_number": reference_number,
     }
     html_email = render_to_string("emails/withdrawal_confirmation.html", context)
     plain_email = strip_tags(html_email)
@@ -109,6 +111,7 @@ def send_transfer_email(
     receiver_new_balance,
     sender_account_number,
     receiver_account_number,
+    reference_number,
 ) -> None:
     subject = _("Transfer Notification ")
     from_email = settings.DEFAULT_FROM_EMAIL
@@ -120,6 +123,7 @@ def send_transfer_email(
         "sender_name": sender_name,
         "receiver_name": receiver_name,
         "site_name": settings.SITE_NAME,
+        "reference_number": reference_number,
     }
     sender_context = {
         **common_context,

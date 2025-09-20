@@ -253,9 +253,23 @@ class DepositView(generics.CreateAPIView):
             account.account_balance += amount
             account.full_clean()
             account.save()
-            logger.info(
-                f"Deposit of {amount} made to account {account.account_number} by teller {request.user.email}"
+
+            # Create transaction record with reference number
+            deposit_transaction = Transaction.objects.create(
+                user=account.user,
+                receiver=account.user,
+                receiver_account=account,
+                amount=amount,
+                description=f"Deposit to account {account.account_number}",
+                transaction_type=Transaction.TransactionType.DEPOSIT,
+                status=Transaction.TransactionStatus.COMPLETED,
+                created_by=request.user,
             )
+
+            logger.info(
+                f"Deposit of {amount} made to account {account.account_number} by teller {request.user.email}. Reference: {deposit_transaction.reference_number}"
+            )
+
             send_deposit_email(
                 user=account.user,
                 user_email=account.user.email,
@@ -263,11 +277,13 @@ class DepositView(generics.CreateAPIView):
                 currency=account.currency,
                 new_balance=account.account_balance,
                 account_number=account.account_number,
+                reference_number=deposit_transaction.reference_number,
             )
             return Response(
                 {
                     "message": f"Successfully deposited {amount} to account {account.account_number}",
                     "new_balance": str(account.account_balance),
+                    "reference_number": deposit_transaction.reference_number,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -396,8 +412,11 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
             description=f"Withdrawal from account {account_number}",
             transaction_type=Transaction.TransactionType.WITHDRAWAL,
             status=Transaction.TransactionStatus.COMPLETED,
+            created_by=request.user,
         )
-        logger.info(f"Withdrawal of {amount} made from account {account_number}")
+        logger.info(
+            f"Withdrawal of {amount} made from account {account_number}. Reference: {withdrawal_transaction.reference_number}"
+        )
         send_withdrawal_email(
             user=account.user,
             user_email=account.user.email,
@@ -405,6 +424,7 @@ class VerifyUsernameAndWithdrawAPIView(generics.CreateAPIView):
             currency=account.currency,
             new_balance=account.account_balance,
             account_number=account.account_number,
+            reference_number=withdrawal_transaction.reference_number,
         )
 
         del request.session["withdrawal_data"]
@@ -545,6 +565,7 @@ class VerifyOTPView(generics.CreateAPIView):
             description=transfer_data.get("description", ""),
             transaction_type=Transaction.TransactionType.TRANSFER,
             status=Transaction.TransactionStatus.COMPLETED,
+            created_by=request.user,
         )
 
         del request.session["transfer_data"]
@@ -560,10 +581,11 @@ class VerifyOTPView(generics.CreateAPIView):
             receiver_new_balance=receiver_account.account_balance,
             sender_account_number=sender_account.account_number,
             receiver_account_number=receiver_account.account_number,
+            reference_number=transfer_transaction.reference_number,
         )
 
         logger.info(
-            f"Transfer of {amount} made from account {sender_account.account_number} to {receiver_account.account_number}"
+            f"Transfer of {amount} made from account {sender_account.account_number} to {receiver_account.account_number}. Reference: {transfer_transaction.reference_number}"
         )
         return Response(
             TransactionSerializer(transfer_transaction).data,
