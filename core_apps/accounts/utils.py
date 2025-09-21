@@ -66,9 +66,9 @@ def create_bank_account(user, currency: str, account_type: str) -> str:
             currency=currency,
             account_type=account_type,
             is_primary=is_primary,
-            account_status = BankAccount.AccountStatus.PENDING
+            account_status=BankAccount.AccountStatus.PENDING,
         )
 
         send_account_creation_email(user, bank_account)
-    
+
     return bank_account

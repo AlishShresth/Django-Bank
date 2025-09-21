@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+from core_apps.accounts.reference_utils import generate_transaction_reference
 from core_apps.common.models import TimeStampedModel, SoftDeleteModel
 from decimal import Decimal, ROUND_HALF_UP
 from loguru import logger
@@ -176,9 +177,9 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
         if today.day != last_day:
             logger.info(f"Today ({today}) is not the last day of the month. Skipping.")
             return "Not the last day of the month"
-        
+
         month = today.replace(day=1)
-        
+
         monthly_balance, created = MonthlyBalanceHistory.objects.get_or_create(
             bank_account=self, month=month, defaults={"balance": self.account_balance}
         )
@@ -188,31 +189,30 @@ class BankAccount(TimeStampedModel, SoftDeleteModel):
             monthly_balance.save()
 
         return monthly_balance
-    
+
     @property
     def balance_change_percentage(self):
         """Calculate percentage change compared to previous month"""
         from django.utils import timezone
         from datetime import timedelta
-        
+
         current_month = timezone.now().date().replace(day=1)
         previous_month = (current_month - timedelta(days=1)).replace(day=1)
-        
-        
+
         current_balance = self.account_balance
-        
+
         try:
             previous_balance = self.monthly_balances.get(month=previous_month).balance
         except MonthlyBalanceHistory.DoesNotExist:
             return None
-        
+
         if previous_balance == 0:
             return None
-        
+
         change = current_balance - previous_balance
         percentage_change = (change / previous_balance) * 100
-        
-        return percentage_change   
+
+        return percentage_change
 
 
 class Transaction(TimeStampedModel, SoftDeleteModel):
@@ -270,13 +270,65 @@ class Transaction(TimeStampedModel, SoftDeleteModel):
         choices=TransactionType.choices,
         max_length=20,
     )
+    reference_number = models.CharField(
+        _("Reference Number"),
+        max_length=20,
+        unique=True,
+        blank=True,
+        null=True,
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.DO_NOTHING,
+        related_name="created_transactions",
+        null=True,
+        blank=True,
+    )
 
     def __str__(self) -> str:
-        return f"{self.transaction_type} - {self.amount} - {self.status}"
+        return f"{self.transaction_type} - {self.amount} - {self.status} - {self.reference_number}"
 
     class Meta:
         ordering = ["-created_at"]
         indexes = [models.Index(fields=["created_at"])]
+
+    def save(self, *args, **kwargs):
+        # Generate reference number if it doesn't exist
+        if not self.reference_number:
+            self.reference_number = self._generate_unique_reference()
+
+        super().save(*args, **kwargs)
+
+    def _generate_unique_reference(self, max_attempts=5) -> str:
+        """
+        Generate a unique reference number with collision handling.
+
+        Args:
+            max_attempts: Maximum number of attempts to generate a unique reference
+
+        Returns:
+            A unique transaction reference number
+
+        Raises:
+            RuntimeError: If unable to generate a unique reference after max_attempts
+        """
+        from .models import Transaction
+
+        for i in range(max_attempts):
+            reference = generate_transaction_reference(self.transaction_type)
+
+            # Check if reference already exists
+            if not Transaction.objects.filter(reference_number=reference).exists():
+                return reference
+
+        # Failed to generate unique reference
+        logger.exception(
+            f"Failed to generate unique reference after {max_attempts} attempts"
+        )
+        raise RuntimeError(
+            f"Failed to generate unique reference after {max_attempts} attempts"
+        )
 
 
 class MonthlyBalanceHistory(TimeStampedModel):
