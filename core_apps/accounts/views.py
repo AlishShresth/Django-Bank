@@ -613,6 +613,7 @@ class TransactionListAPIView(generics.ListAPIView):
                 "sender_account",
                 "sender_account__user",
                 "receiver_account__user",
+                "created_by",
             )
             .filter(Q(sender=user) | Q(receiver=user))
             .exclude(transaction_type="interest")
