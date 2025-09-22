@@ -83,9 +83,12 @@ class CustomTokenCreateView(TokenCreateView):
                 if user.otp and user.otp_expiry_time is not None:
                     return self._action(serializer)
                 if not user.is_active:
-                    return Response({
-                        'message': "Please activate your account before trying to login. An activation email should have been sent to your email. If you cannot find the activation email please check your spam folder or click on the resend activation email button."
-                    }, status=status.HTTP_202_ACCEPTED)
+                    return Response(
+                        {
+                            "message": "Please activate your account before trying to login. An activation email should have been sent to your email. If you cannot find the activation email please check your spam folder or click on the resend activation email button."
+                        },
+                        status=status.HTTP_202_ACCEPTED,
+                    )
                 user.handle_failed_login_attempts()
                 failed_attempts = user.failed_login_attempts
                 logger.error(
@@ -175,11 +178,11 @@ class OTPVerifyView(APIView):
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
-        
+
         response = Response(
             {
                 "success": "Login successful. Now add your profile information, so that we can create an account for you.",
-                "user": UserSerializer(user).data
+                "user": UserSerializer(user).data,
             },
             status=status.HTTP_200_OK,
         )

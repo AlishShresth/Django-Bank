@@ -150,7 +150,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         max_digits=12, decimal_places=2, min_value=Decimal("0.1")
     )
     reference_number = serializers.CharField(read_only=True)
-    created_by = serializers.CharField(max_length=20, required=False)
+    created_by = serializers.CharField(read_only=True)
 
     class Meta:
         model = Transaction
@@ -169,7 +169,7 @@ class TransactionSerializer(serializers.ModelSerializer):
             "created_at",
             "created_by",
         ]
-        read_only_fields = ["id", "status", "created_at", "reference_number"]
+        read_only_fields = ["id", "status", "created_at", "reference_number", "created_by"]
 
     def to_representation(self, instance: Transaction) -> str:
         representation = super().to_representation(instance)
