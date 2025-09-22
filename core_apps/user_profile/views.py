@@ -5,6 +5,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status, filters, generics, serializers
 from rest_framework.pagination import PageNumberPagination
@@ -45,7 +48,9 @@ class ProfileListAPIView(generics.ListAPIView):
             .exclude(user__is_superuser=True)
         )
 
-
+@method_decorator(cache_page(60 * 5), name="retrieve")  # Cache for 5 minutes
+@method_decorator(vary_on_headers("Authorization"), name="retrieve")
+@method_decorator(vary_on_cookie, name="retrieve")
 class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -56,8 +61,60 @@ class ProfileDetailAPIView(generics.RetrieveUpdateAPIView):
         try:
             profile = (
                 Profile.objects.select_related("user")
-                .prefetch_related("next_of_kin")
+                .prefetch_related("next_of_kin").only(
+                    "id",
+                    "user__first_name",
+                    "user__middle_name",
+                    "user__last_name",
+                    "user__username",
+                    "user__id_no",
+                    "user__email",
+                    "user__date_joined",
+                    "title",
+                    "gender",
+                    "date_of_birth",
+                    "country_of_birth",
+                    "place_of_birth",
+                    "marital_status",
+                    "means_of_identification",
+                    "id_issue_date",
+                    "id_expiry_date",
+                    "passport_number",
+                    "nationality",
+                    "phone_number",
+                    "address",
+                    "city",
+                    "country",
+                    "employment_status",
+                    "employer_name",
+                    "annual_income",
+                    "date_of_employment",
+                    "employer_address",
+                    "employer_city",
+                    "employer_state",
+                    "next_of_kin",
+                    "next_of_kin__country",
+                    "next_of_kin__phone_number",
+                    "next_of_kin__title",
+                    "next_of_kin__first_name",
+                    "next_of_kin__other_names",
+                    "next_of_kin__last_name",
+                    "next_of_kin__date_of_birth",
+                    "next_of_kin__gender",
+                    "next_of_kin__relationship",
+                    "next_of_kin__email_address",
+                    "next_of_kin__address",
+                    "next_of_kin__city",
+                    "next_of_kin__country",
+                    "next_of_kin__is_primary",
+                    "photo_url",
+                    "id_photo_url",
+                    "signature_photo_url",
+                    "user__last_login",
+                    "user__security_question",
+                )
                 .get(user=self.request.user)
+                
             )
             self.record_profile_view(profile)
             return profile
