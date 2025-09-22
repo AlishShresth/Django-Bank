@@ -5,7 +5,7 @@ from django.conf import settings
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local')
 
-app = Celery("nextgen_bank")
+app = Celery("secure_bank")
 
 app.config_from_object("django.conf.settings", namespace="CELERY")
 

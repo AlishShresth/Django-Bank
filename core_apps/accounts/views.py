@@ -1,5 +1,6 @@
 import random
 from typing import Any
+from django.conf import settings
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
@@ -508,6 +509,7 @@ class VerifySecurityQuestionView(generics.CreateAPIView):
                 {
                     "message": "Security question verified. An OTP has been sent to your email.",
                     "next_step": "verify otp",
+                    "expiry_time": str(settings.OTP_EXPIRATION)
                 },
                 status=status.HTTP_200_OK,
             )

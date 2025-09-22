@@ -242,7 +242,7 @@ class SecurityQuestionSerializer(serializers.Serializer):
 
     def validate(self, data: dict) -> dict:
         user = self.context["request"].user
-        if data["security_answer"] != user.security_answer:
+        if data["security_answer"].lower() != user.security_answer.lower():
             raise serializers.ValidationError("Incorrect security answer.")
         return data
 

@@ -211,7 +211,7 @@ DJOSER = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "NextGen Bank API",
+    "TITLE": "SecureBank API",
     "DESCRIPTION": "An API built for a banking system",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
