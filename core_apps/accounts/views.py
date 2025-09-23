@@ -1,6 +1,10 @@
 import random
 from typing import Any
+from django.conf import settings
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_cookie, vary_on_headers
 from rest_framework import generics, status, serializers
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -505,6 +509,7 @@ class VerifySecurityQuestionView(generics.CreateAPIView):
                 {
                     "message": "Security question verified. An OTP has been sent to your email.",
                     "next_step": "verify otp",
+                    "expiry_time": str(settings.OTP_EXPIRATION)
                 },
                 status=status.HTTP_200_OK,
             )
@@ -593,6 +598,9 @@ class VerifyOTPView(generics.CreateAPIView):
         )
 
 
+@method_decorator(cache_page(60 * 5), name="list")  # Cache for 5 minutes
+@method_decorator(vary_on_headers("Authorization"), name="list")
+@method_decorator(vary_on_cookie, name="list")
 class TransactionListAPIView(generics.ListAPIView):
     serializer_class = TransactionSerializer
     renderer_classes = [GenericJSONRenderer]
@@ -600,7 +608,7 @@ class TransactionListAPIView(generics.ListAPIView):
     pagination_class = StandardResultsSetPagination
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     ordering_fields = ["created_at", "amount"]
-    order = ["-created_at"]
+    ordering = ["-created_at"]
 
     def get_queryset(self):
         user = self.request.user
@@ -613,9 +621,43 @@ class TransactionListAPIView(generics.ListAPIView):
                 "sender_account",
                 "sender_account__user",
                 "receiver_account__user",
+                "created_by",
             )
             .filter(Q(sender=user) | Q(receiver=user))
             .exclude(transaction_type="interest")
+            .only(
+                "id",
+                "reference_number",
+                "amount",
+                "user_id",
+                "user__first_name",
+                "user__last_name",
+                "description",
+                "receiver_id",
+                "receiver__first_name",
+                "receiver__last_name",
+                "receiver_account__user_id",
+                "receiver_account__user__first_name",
+                "receiver_account__user__last_name",
+                "receiver_account__account_number",
+                "receiver_account__currency",
+                "receiver_account__account_type",
+                "sender_id",
+                "sender__first_name",
+                "sender__last_name",
+                "sender_account__user_id",
+                "sender_account__user__first_name",
+                "sender_account__user__last_name",
+                "sender_account__account_number",
+                "sender_account__currency",
+                "sender_account__account_type",
+                "transaction_type",
+                "status",
+                "created_at",
+                "created_by_id",
+                "created_by__first_name",
+                "created_by__last_name"
+            )
         )
         start_date = self.request.query_params.get("start_date")
         end_date = self.request.query_params.get("end_date")

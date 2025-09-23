@@ -17,11 +17,9 @@ Transfer Notification
 <ul>
   <li><strong>Amount:</strong> {{ currency }} {{ amount|intcomma }}</li>
   {% if is_sender %}
-  <li> <strong>To: </strong> {{ receiver_name }} (Account: {{
-    receiver_account_number }})</li>
+  <li> <strong>To: </strong> {{ receiver_name }} (Account: {{ receiver_account_number }})</li>
   {% else %}
-  <li> <strong>From: </strong> {{ sender_name }} (Account: {{
-    sender_account_number }})</li>
+  <li> <strong>From: </strong> {{ sender_name }} (Account: {{ sender_account_number }})</li>
   {% endif %}
   <li><strong>Your New Balance:</strong> {{ new_balance|intcomma }}</li>
   <li><strong>Reference:</strong> {{ reference_number }}</li>

@@ -26,7 +26,7 @@ class NextOfKinSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = NextOfKin
-        exclude = ["profile"]
+        exclude = ["profile", "created_at", "updated_at"]
 
     def create(self, validated_data: dict) -> NextOfKin:
         profile = self.context.get("profile")
@@ -58,11 +58,14 @@ class ProfileSerializer(serializers.ModelSerializer):
     id_photo_url = serializers.URLField(read_only=True)
     signature_photo_url = serializers.URLField(read_only=True)
     view_count = serializers.SerializerMethodField()
-    account_currency = serializers.ChoiceField(
-        choices=BankAccount.AccountCurrency.choices
-    )
-    account_type = serializers.ChoiceField(choices=BankAccount.AccountType.choices)
+    # account_currency = serializers.ChoiceField(
+    #     choices=BankAccount.AccountCurrency.choices
+    # )
+    # account_type = serializers.ChoiceField(choices=BankAccount.AccountType.choices)
     last_login = serializers.DateTimeField(source="user.last_login", read_only=True)
+    security_question = serializers.CharField(
+        source="user.security_question", read_only=True
+    )
 
     class Meta:
         model = Profile
@@ -99,8 +102,6 @@ class ProfileSerializer(serializers.ModelSerializer):
             "employer_city",
             "employer_state",
             "next_of_kin",
-            "created_at",
-            "updated_at",
             "photo",
             "photo_url",
             "id_photo",
@@ -108,9 +109,8 @@ class ProfileSerializer(serializers.ModelSerializer):
             "signature_photo",
             "signature_photo_url",
             "view_count",
-            "account_currency",
-            "account_type",
             "last_login",
+            "security_question",
         ]
         read_only_fields = [
             "user",
@@ -120,6 +120,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "last_login",
+            "security_question",
         ]
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:

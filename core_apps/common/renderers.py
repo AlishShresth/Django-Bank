@@ -4,6 +4,8 @@ from typing import Any, Optional, Union
 from django.utils.translation import gettext_lazy as _
 from rest_framework.renderers import JSONRenderer
 
+from core_apps.common.encoders import UUIDEncoder
+
 
 class GenericJSONRenderer(JSONRenderer):
     charset = "utf-8"
@@ -40,5 +42,6 @@ class GenericJSONRenderer(JSONRenderer):
             {
                 "status_code": status_code,
                 object_label: data,
-            }
+            },
+            cls=UUIDEncoder,
         ).encode(self.charset)

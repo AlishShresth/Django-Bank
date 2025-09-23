@@ -143,13 +143,14 @@ class CustomerInfoSerializer(serializers.ModelSerializer):
 
 
 class TransactionSerializer(serializers.ModelSerializer):
-    id = serializers.UUIDField(read_only=True)
+    id = serializers.UUIDField(read_only=True, format='hex')
     sender_account = serializers.CharField(max_length=20, required=False)
     receiver_account = serializers.CharField(max_length=20, required=False)
     amount = serializers.DecimalField(
         max_digits=12, decimal_places=2, min_value=Decimal("0.1")
     )
     reference_number = serializers.CharField(read_only=True)
+    created_by = serializers.CharField(read_only=True)
 
     class Meta:
         model = Transaction
@@ -166,8 +167,9 @@ class TransactionSerializer(serializers.ModelSerializer):
             "transaction_type",
             "status",
             "created_at",
+            "created_by",
         ]
-        read_only_fields = ["id", "status", "created_at", "reference_number"]
+        read_only_fields = ["id", "status", "created_at", "reference_number", "created_by"]
 
     def to_representation(self, instance: Transaction) -> str:
         representation = super().to_representation(instance)
@@ -185,6 +187,9 @@ class TransactionSerializer(serializers.ModelSerializer):
             instance.receiver_account.account_number
             if instance.receiver_account
             else None
+        )
+        representation["created_by"] = (
+            instance.created_by.full_name if instance.created_by else None
         )
         return representation
 
@@ -237,7 +242,7 @@ class SecurityQuestionSerializer(serializers.Serializer):
 
     def validate(self, data: dict) -> dict:
         user = self.context["request"].user
-        if data["security_answer"] != user.security_answer:
+        if data["security_answer"].lower() != user.security_answer.lower():
             raise serializers.ValidationError("Incorrect security answer.")
         return data
 
